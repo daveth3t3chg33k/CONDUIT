@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { clearToken } from "@/lib/api";
 
 const navigation = [
   { name: "Dashboard", href: "/", current: true },
@@ -12,7 +14,29 @@ const navigation = [
 ];
 
 export default function Sidebar() {
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [adminName, setAdminName] = useState("Admin");
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("conduit_admin");
+      if (raw) {
+        const admin = JSON.parse(raw);
+        if (admin.name) setAdminName(admin.name);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  function handleLogout() {
+    clearToken();
+    localStorage.removeItem("conduit_admin");
+    router.push("/login");
+  }
+
+  const initial = adminName.charAt(0).toUpperCase();
 
   return (
     <>
@@ -64,12 +88,21 @@ export default function Sidebar() {
           <div className="px-4 py-4 border-t border-gray-100">
             <div className="flex items-center gap-3">
               <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 text-sm font-medium">
-                K
+                {initial}
               </div>
-              <div>
-                <p className="text-sm font-medium">kam1rah</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{adminName}</p>
                 <p className="text-xs text-gray-500">Admin</p>
               </div>
+              <button
+                onClick={handleLogout}
+                title="Sign out"
+                className="p-1.5 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>

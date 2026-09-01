@@ -129,6 +129,18 @@ export interface LedgerResponse {
 // API methods
 // ---------------------------------------------------------------------------
 
+export interface AdminPublic {
+  id: string;
+  email: string;
+  name: string;
+  created_at: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  admin: AdminPublic;
+}
+
 export const api = {
   // health
   health: () => request<{ status: string }>("/health"),
@@ -136,6 +148,19 @@ export const api = {
     request<{ status: string; postgres: boolean; redis: boolean }>(
       "/health/ready"
     ),
+
+  // auth
+  signup: (data: { email: string; name: string; password: string }) =>
+    request<AuthResponse>("/api/v1/auth/signup", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  login: (data: { email: string; password: string }) =>
+    request<AuthResponse>("/api/v1/auth/login", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  me: () => request<AdminPublic>("/api/v1/auth/me"),
 
   // platforms
   createPlatform: (data: { name: string }) =>

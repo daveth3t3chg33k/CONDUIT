@@ -81,20 +81,25 @@ async fn main() -> anyhow::Result<()> {
             .allow_headers(Any)
     };
 
-    // Routes that do NOT require authentication
+    // ---- Public routes (no auth) ----
     let public_routes = Router::new()
         .route("/health", get(handlers::health::live))
-        .route("/health/ready", get(handlers::health::ready));
+        .route("/health/ready", get(handlers::health::ready))
+        // Auth: signup and login are public
+        .route("/api/v1/auth/signup", post(handlers::auth::signup))
+        .route("/api/v1/auth/login", post(handlers::auth::login));
 
-    // Webhook ingress — authenticated by HMAC signature, not JWT
-    // M-Pesa callback routes — no auth (Safaricom calls these directly)
+    // ---- Webhook & callback routes (no JWT auth) ----
     let webhook_routes = Router::new()
         .route("/api/v1/webhook/ingress", post(handlers::webhook::ingress))
         .route("/api/v1/mpesa/b2c-callback", post(handlers::mpesa_callback::b2c_callback))
         .route("/api/v1/mpesa/stk-callback", post(handlers::mpesa_callback::stk_callback));
 
-    // Management API routes — all require JWT auth
+    // ---- Protected management routes (JWT required) ----
     let management_routes = Router::new()
+        // Auth: /me requires a valid token
+        .route("/api/v1/auth/me", get(handlers::auth::me))
+        // Platform management
         .route("/api/v1/platforms", post(handlers::platforms::create))
         .route(
             "/api/v1/platforms/:platform_id",
@@ -118,6 +123,7 @@ async fn main() -> anyhow::Result<()> {
             put(handlers::split_rules::update)
                 .delete(handlers::split_rules::deactivate),
         )
+        // Transactions & payouts
         .route("/api/v1/transactions", get(handlers::transactions::list))
         .route(
             "/api/v1/transactions/:transaction_id",
@@ -133,7 +139,7 @@ async fn main() -> anyhow::Result<()> {
             get(handlers::payout_jobs::get_one),
         );
 
-    // JWT auth layer — applied only to management routes
+    // JWT auth layer — extracts Claims and injects them as an Extension
     let jwt_secret = cfg.jwt_secret.clone();
     let authed_management = management_routes.layer(axum::middleware::from_fn({
         let secret = jwt_secret.clone();
@@ -148,7 +154,6 @@ async fn main() -> anyhow::Result<()> {
         .merge(authed_management)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
-        // 1MB body limit for webhook payloads
         .layer(RequestBodyLimitLayer::new(1024 * 1024))
         .with_state(state);
 
@@ -185,8 +190,10 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// JWT auth middleware — validates the token, decodes Claims, and injects
+/// them into the request extensions so handlers can access the current user.
 async fn jwt_auth_middleware(
-    req: Request<axum::body::Body>,
+    mut req: Request<axum::body::Body>,
     next: axum::middleware::Next,
     secret: &str,
 ) -> std::result::Result<Response, StatusCode> {
@@ -204,14 +211,17 @@ async fn jwt_auth_middleware(
     };
 
     let validation = jsonwebtoken::Validation::default();
-    let token_data = jsonwebtoken::decode::<Claims>(
+    let token_data = jsonwebtoken::decode::<handlers::auth::Claims>(
         token,
         &jsonwebtoken::DecodingKey::from_secret(secret.as_bytes()),
         &validation,
     );
 
     match token_data {
-        Ok(_) => Ok(next.run(req).await),
+        Ok(data) => {
+            req.extensions_mut().insert(data.claims);
+            Ok(next.run(req).await)
+        }
         Err(e) => {
             tracing::warn!(error = %e, "invalid JWT token");
             Err(StatusCode::UNAUTHORIZED)
@@ -219,16 +229,12 @@ async fn jwt_auth_middleware(
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
-struct Claims {
-    #[allow(dead_code)]
-    sub: String,
-    #[allow(dead_code)]
-    exp: usize,
-}
-
 async fn run_migrations(db: &sqlx::PgPool) -> anyhow::Result<()> {
-    let migration_sql = include_str!("../migrations/001_initial_schema.sql");
-    sqlx::raw_sql(migration_sql).execute(db).await?;
+    let migration_001 = include_str!("../migrations/001_initial_schema.sql");
+    sqlx::raw_sql(migration_001).execute(db).await?;
+
+    let migration_002 = include_str!("../migrations/002_admins.sql");
+    sqlx::raw_sql(migration_002).execute(db).await?;
+
     Ok(())
 }

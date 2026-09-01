@@ -189,3 +189,46 @@ pub struct PayoutJob {
     pub dispatched_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
 }
+
+// ---------------------------------------------------------------------------
+// Admin (authentication)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Admin {
+    pub id: Uuid,
+    pub email: String,
+    pub name: String,
+    /// The argon2 password hash — never serialized to JSON responses.
+    #[serde(skip_serializing)]
+    pub password_hash: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SignupRequest {
+    pub email: String,
+    pub name: String,
+    pub password: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoginRequest {
+    pub email: String,
+    pub password: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AuthResponse {
+    pub token: String,
+    pub admin: AdminPublic,
+}
+
+/// Public admin profile returned in API responses — no password hash.
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct AdminPublic {
+    pub id: Uuid,
+    pub email: String,
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+}

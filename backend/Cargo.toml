@@ -38,6 +38,7 @@ hmac = "0.12"
 rand = "0.8"
 jsonwebtoken = "9"
 base64 = "0.21"
+argon2 = "0.5"
 
 # config
 dotenvy = "0.15"
