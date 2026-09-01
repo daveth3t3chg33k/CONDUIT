@@ -166,7 +166,7 @@ pub struct LedgerEntry {
 // Payout Job
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "payout_status", rename_all = "snake_case")]
 pub enum PayoutStatus {
     Queued,
