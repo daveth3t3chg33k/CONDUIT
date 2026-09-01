@@ -232,6 +232,12 @@ export const api = {
       method: "DELETE",
     }),
 
+  // stats
+  getPlatformStats: (platformId: string) =>
+    request<{ platform_id: string; days: { date: string; count: number; volume_cents: number }[] }>(
+      `/api/v1/platforms/${platformId}/stats`
+    ),
+
   // transactions
   listTransactions: (params?: {
     platform_id?: string;

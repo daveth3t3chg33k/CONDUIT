@@ -7,3 +7,4 @@ pub mod transactions;
 pub mod payout_jobs;
 pub mod mpesa_callback;
 pub mod auth;
+pub mod stats;

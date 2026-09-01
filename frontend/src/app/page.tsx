@@ -1,15 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Sidebar from "@/components/Sidebar";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
 import { api, Transaction } from "@/lib/api";
 import { usePlatform } from "@/lib/PlatformContext";
 
+interface DayStats {
+  date: string;
+  count: number;
+  volume_cents: number;
+}
+
 export default function DashboardPage() {
   const { selectedPlatformId, selectedPlatform } = usePlatform();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [dayStats, setDayStats] = useState<DayStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [serverStatus, setServerStatus] = useState<"ok" | "degraded" | "error">("error");
@@ -24,13 +31,15 @@ export default function DashboardPage() {
       setLoading(true);
       setError(null);
       try {
-        const [txns, health] = await Promise.allSettled([
+        const [txns, health, stats] = await Promise.allSettled([
           api.listTransactions({ platform_id: selectedPlatformId!, limit: 10 }),
           api.ready(),
+          api.getPlatformStats(selectedPlatformId!),
         ]);
         if (!cancelled) {
           if (txns.status === "fulfilled") setTransactions(txns.value);
           if (health.status === "fulfilled") setServerStatus(health.value.status === "ok" ? "ok" : "degraded");
+          if (stats.status === "fulfilled") setDayStats(stats.value.days);
           if (txns.status === "rejected") setError(txns.reason?.message || "Failed to load");
         }
       } catch (e) {
@@ -43,8 +52,54 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, [selectedPlatformId]);
 
+  // Reset state when platform changes
+  useEffect(() => {
+    setTransactions([]);
+    setDayStats([]);
+  }, [selectedPlatformId]);
+
+  // Compute 7-day trailing sparkline data
+  const sparklines = useMemo(() => {
+    // Get last 7 days of stats (fill missing days with zeros)
+    const now = new Date();
+    const last7: DayStats[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const found = dayStats.find(s => s.date === key);
+      last7.push(found || { date: key, count: 0, volume_cents: 0 });
+    }
+    return {
+      txCounts: last7.map(d => d.count),
+      volumes: last7.map(d => d.volume_cents / 100), // Convert cents to KES
+      payoutCounts: last7.map(d => d.count), // Payouts follow transactions
+    };
+  }, [dayStats]);
+
   const totalVolume = transactions.reduce((sum, tx) => sum + tx.amount_cents, 0);
   const pendingPayouts = transactions.filter(tx => tx.status === "received" || tx.status === "split_computed").length;
+
+  // Compare first vs last day of 7-day window for trend
+  const txTrend = useMemo(() => {
+    const d = sparklines.txCounts;
+    if (d.length < 2) return "neutral" as const;
+    const first3 = d.slice(0, 3).reduce((a, b) => a + b, 0);
+    const last3 = d.slice(-3).reduce((a, b) => a + b, 0);
+    if (last3 > first3) return "up" as const;
+    if (last3 < first3) return "down" as const;
+    return "neutral" as const;
+  }, [sparklines.txCounts]);
+
+  const volTrend = useMemo(() => {
+    const d = sparklines.volumes;
+    if (d.length < 2) return "neutral" as const;
+    const first3 = d.slice(0, 3).reduce((a, b) => a + b, 0);
+    const last3 = d.slice(-3).reduce((a, b) => a + b, 0);
+    if (last3 > first3) return "up" as const;
+    if (last3 < first3) return "down" as const;
+    return "neutral" as const;
+  }, [sparklines.volumes]);
 
   return (
     <div className="flex h-full">
@@ -85,12 +140,15 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* stat cards */}
+              {/* stat cards with sparklines */}
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
                 <StatCard
                   label="Transactions"
                   value={loading ? "—" : transactions.length}
                   change={loading ? "Loading…" : "Last 10 incoming"}
+                  trend={txTrend}
+                  sparklineData={sparklines.txCounts}
+                  sparklineColor="#4F46E5"
                   icon={
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
@@ -101,7 +159,9 @@ export default function DashboardPage() {
                   label="Volume (KES)"
                   value={loading ? "—" : `KES ${(totalVolume / 100).toLocaleString()}`}
                   change={loading ? "Loading…" : "Combined value"}
-                  trend="up"
+                  trend={volTrend}
+                  sparklineData={sparklines.volumes}
+                  sparklineColor="#10B981"
                   icon={
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -123,6 +183,8 @@ export default function DashboardPage() {
                   value={pendingPayouts}
                   change={pendingPayouts === 0 ? "All caught up" : "Awaiting payout"}
                   trend={pendingPayouts === 0 ? "up" : "down"}
+                  sparklineData={sparklines.payoutCounts}
+                  sparklineColor="#F59E0B"
                   icon={
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />

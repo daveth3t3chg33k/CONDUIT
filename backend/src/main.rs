@@ -107,6 +107,10 @@ async fn main() -> anyhow::Result<()> {
                 .put(handlers::platforms::update),
         )
         .route(
+            "/api/v1/platforms/:platform_id/stats",
+            get(handlers::stats::platform_stats),
+        )
+        .route(
             "/api/v1/platforms/:platform_id/vendors",
             post(handlers::vendors::create).get(handlers::vendors::list),
         )
