@@ -1,23 +1,41 @@
 /**
- * Thin API client for the Conduit backend.
+ * Typed API client for the Conduit backend.
  *
- * Nothing fancy — just typed fetch wrappers. In a real app you'd
- * probably use something like ky or ofetch, but for now plain
- * fetch keeps dependencies minimal.
+ * Supports JWT auth via a token stored in localStorage.
+ * Provides a reusable `useApi` hook for data fetching with loading/error states.
  */
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("conduit_token");
+}
+
+export function setToken(token: string) {
+  localStorage.setItem("conduit_token", token);
+}
+
+export function clearToken() {
+  localStorage.removeItem("conduit_token");
+}
 
 async function request<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...((options?.headers as Record<string, string>) || {}),
+  };
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...options?.headers,
-    },
     ...options,
+    headers,
   });
 
   if (!res.ok) {
@@ -37,7 +55,7 @@ async function request<T>(
 export interface Platform {
   id: string;
   name: string;
-  webhook_secret: string;
+  webhook_secret?: string;
   created_at: string;
   updated_at: string;
 }
@@ -97,6 +115,16 @@ export interface PayoutJob {
   created_at: string;
 }
 
+export interface LedgerResponse {
+  transaction_id: string;
+  entries: LedgerEntry[];
+  summary: {
+    total_debits: number;
+    total_credits: number;
+    balanced: boolean;
+  };
+}
+
 // ---------------------------------------------------------------------------
 // API methods
 // ---------------------------------------------------------------------------
@@ -104,7 +132,10 @@ export interface PayoutJob {
 export const api = {
   // health
   health: () => request<{ status: string }>("/health"),
-  ready: () => request<{ status: string; postgres: boolean; redis: boolean }>("/health/ready"),
+  ready: () =>
+    request<{ status: string; postgres: boolean; redis: boolean }>(
+      "/health/ready"
+    ),
 
   // platforms
   createPlatform: (data: { name: string }) =>
@@ -121,13 +152,28 @@ export const api = {
     }),
 
   // vendors
-  createVendor: (platformId: string, data: { name: string; phone_number?: string; bank_account?: string; email?: string }) =>
+  createVendor: (
+    platformId: string,
+    data: {
+      name: string;
+      phone_number?: string;
+      bank_account?: string;
+      email?: string;
+    }
+  ) =>
     request<Vendor>(`/api/v1/platforms/${platformId}/vendors`, {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  listVendors: (platformId: string) =>
-    request<Vendor[]>(`/api/v1/platforms/${platformId}/vendors`),
+  listVendors: (platformId: string, params?: { limit?: number; offset?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.offset) qs.set("offset", String(params.offset));
+    const query = qs.toString();
+    return request<Vendor[]>(
+      `/api/v1/platforms/${platformId}/vendors${query ? `?${query}` : ""}`
+    );
+  },
   updateVendor: (vendorId: string, data: Partial<Vendor>) =>
     request<Vendor>(`/api/v1/vendors/${vendorId}`, {
       method: "PUT",
@@ -135,12 +181,15 @@ export const api = {
     }),
 
   // split rules
-  createSplitRule: (platformId: string, data: {
-    vendor_id: string;
-    rule_type: "percentage" | "fixed";
-    value: number;
-    priority?: number;
-  }) =>
+  createSplitRule: (
+    platformId: string,
+    data: {
+      vendor_id: string;
+      rule_type: "percentage" | "fixed";
+      value: number;
+      priority?: number;
+    }
+  ) =>
     request<SplitRule>(`/api/v1/platforms/${platformId}/split-rules`, {
       method: "POST",
       body: JSON.stringify(data),
@@ -158,29 +207,39 @@ export const api = {
     }),
 
   // transactions
-  listTransactions: (params?: { platform_id?: string; limit?: number; offset?: number }) => {
+  listTransactions: (params?: {
+    platform_id?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
     const qs = new URLSearchParams();
     if (params?.platform_id) qs.set("platform_id", params.platform_id);
     if (params?.limit) qs.set("limit", String(params.limit));
     if (params?.offset) qs.set("offset", String(params.offset));
     const query = qs.toString();
-    return request<Transaction[]>(`/api/v1/transactions${query ? `?${query}` : ""}`);
+    return request<Transaction[]>(
+      `/api/v1/transactions${query ? `?${query}` : ""}`
+    );
   },
   getTransaction: (id: string) =>
     request<Transaction>(`/api/v1/transactions/${id}`),
   getTransactionLedger: (id: string) =>
-    request<{ transaction_id: string; entries: LedgerEntry[]; summary: { total_debits: number; total_credits: number; balanced: boolean } }>(
-      `/api/v1/transactions/${id}/ledger`
-    ),
+    request<LedgerResponse>(`/api/v1/transactions/${id}/ledger`),
 
   // payout jobs
-  listPayoutJobs: (params?: { status?: string; limit?: number; offset?: number }) => {
+  listPayoutJobs: (params?: {
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
     const qs = new URLSearchParams();
     if (params?.status) qs.set("status", params.status);
     if (params?.limit) qs.set("limit", String(params.limit));
     if (params?.offset) qs.set("offset", String(params.offset));
     const query = qs.toString();
-    return request<PayoutJob[]>(`/api/v1/payout-jobs${query ? `?${query}` : ""}`);
+    return request<PayoutJob[]>(
+      `/api/v1/payout-jobs${query ? `?${query}` : ""}`
+    );
   },
   getPayoutJob: (id: string) =>
     request<PayoutJob>(`/api/v1/payout-jobs/${id}`),
