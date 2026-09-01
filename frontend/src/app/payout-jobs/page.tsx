@@ -16,178 +16,110 @@ export default function PayoutJobsPage() {
   const limit = 20;
 
   const loadJobs = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
-      const params: { status?: string; limit: number; offset: number } = {
-        limit,
-        offset: page * limit,
-      };
+      const params: { status?: string; limit: number; offset: number } = { limit, offset: page * limit };
       if (activeFilter !== "all") params.status = activeFilter;
-      const data = await api.listPayoutJobs(params);
-      setJobs(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load payout jobs");
-    } finally {
-      setLoading(false);
-    }
+      setJobs(await api.listPayoutJobs(params));
+    } catch (e) { setError(e instanceof Error ? e.message : "Failed to load"); }
+    finally { setLoading(false); }
   }, [activeFilter, page]);
 
-  useEffect(() => {
-    loadJobs();
-  }, [loadJobs]);
+  useEffect(() => { loadJobs(); }, [loadJobs]);
 
-  // Summary stats
   const stats = {
-    queued: jobs.filter((j) => j.status === "queued").length,
-    completed: jobs.filter((j) => j.status === "completed").length,
-    failed: jobs.filter((j) => j.status === "manual_review").length,
+    queued: jobs.filter(j => j.status === "queued").length,
+    completed: jobs.filter(j => j.status === "completed").length,
+    failed: jobs.filter(j => j.status === "manual_review").length,
     totalAmount: jobs.reduce((sum, j) => sum + j.amount_cents, 0),
   };
 
   return (
     <div className="flex h-full">
       <Sidebar />
-      <main className="flex-1 lg:ml-0 pt-16 lg:pt-0">
-        <div className="px-6 lg:px-10 py-8">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold tracking-tight">Payout Jobs</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Track outgoing payouts to vendors and their delivery status.
-            </p>
+      <main className="flex-1 lg:ml-0 pt-16 lg:pt-0 overflow-y-auto">
+        <div className="px-6 lg:px-10 py-8 max-w-[1400px] mx-auto">
+          <div className="mb-6">
+            <h1 className="text-[22px] font-bold tracking-tight text-[var(--color-ink)]">Payout Jobs</h1>
+            <p className="text-[13px] text-[var(--color-ink-secondary)] mt-1">Track outgoing payouts to vendors and their delivery status.</p>
           </div>
 
-          {/* summary row */}
+          {/* summary cards */}
           {!loading && jobs.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              <div className="px-4 py-3 bg-white rounded-lg border border-gray-200">
-                <p className="text-xs text-gray-500">Queued</p>
-                <p className="text-lg font-semibold mt-0.5">{stats.queued}</p>
+              <div className="px-4 py-3 bg-white rounded-[var(--radius-md)] border border-[var(--color-border)]">
+                <p className="text-[11px] font-semibold text-[var(--color-ink-muted)] uppercase tracking-wider">Queued</p>
+                <p className="text-xl font-bold mt-1 tabular-nums text-[var(--color-ink)]">{stats.queued}</p>
               </div>
-              <div className="px-4 py-3 bg-white rounded-lg border border-gray-200">
-                <p className="text-xs text-gray-500">Completed</p>
-                <p className="text-lg font-semibold mt-0.5">{stats.completed}</p>
+              <div className="px-4 py-3 bg-white rounded-[var(--radius-md)] border border-[var(--color-border)]">
+                <p className="text-[11px] font-semibold text-[var(--color-ink-muted)] uppercase tracking-wider">Completed</p>
+                <p className="text-xl font-bold mt-1 tabular-nums text-emerald-600">{stats.completed}</p>
               </div>
-              <div className="px-4 py-3 bg-white rounded-lg border border-gray-200">
-                <p className="text-xs text-gray-500">Manual Review</p>
-                <p className="text-lg font-semibold mt-0.5 text-orange-600">{stats.failed}</p>
+              <div className="px-4 py-3 bg-white rounded-[var(--radius-md)] border border-[var(--color-border)]">
+                <p className="text-[11px] font-semibold text-[var(--color-ink-muted)] uppercase tracking-wider">Manual Review</p>
+                <p className="text-xl font-bold mt-1 tabular-nums text-orange-600">{stats.failed}</p>
               </div>
-              <div className="px-4 py-3 bg-white rounded-lg border border-gray-200">
-                <p className="text-xs text-gray-500">Total Amount</p>
-                <p className="text-lg font-semibold mt-0.5">
-                  KES {(stats.totalAmount / 100).toLocaleString()}
-                </p>
+              <div className="px-4 py-3 bg-white rounded-[var(--radius-md)] border border-[var(--color-border)]">
+                <p className="text-[11px] font-semibold text-[var(--color-ink-muted)] uppercase tracking-wider">Total Amount</p>
+                <p className="text-xl font-bold mt-1 tabular-nums text-[var(--color-ink)]">KES {(stats.totalAmount / 100).toLocaleString()}</p>
               </div>
             </div>
           )}
 
-          {/* status filter pills */}
+          {/* filter pills */}
           <div className="flex items-center gap-2 mb-6 flex-wrap">
-            {STATUS_FILTERS.map((f) => (
-              <button
-                key={f}
-                onClick={() => {
-                  setActiveFilter(f);
-                  setPage(0);
-                }}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-                  activeFilter === f
-                    ? f === "manual_review"
-                      ? "bg-orange-50 text-orange-700 border border-orange-200"
-                      : "bg-indigo-50 text-indigo-700 border border-indigo-200"
-                    : "bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100"
-                }`}
-              >
+            {STATUS_FILTERS.map(f => (
+              <button key={f} onClick={() => { setActiveFilter(f); setPage(0); }}
+                className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150
+                  ${activeFilter === f ? "bg-[var(--color-primary-light)] text-[var(--color-primary)] ring-1 ring-[var(--color-primary)]" : "bg-white text-[var(--color-ink-secondary)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]"}`}>
                 {f === "all" ? "All" : f.replace(/_/g, " ")}
               </button>
             ))}
           </div>
 
-          {error && (
-            <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-              {error}
-            </div>
-          )}
+          {error && <div className="mb-4 px-4 py-3 rounded-[var(--radius-md)] bg-[var(--color-danger-bg)] border border-red-200 text-[13px] text-[var(--color-danger)] font-medium">{error}</div>}
 
-          {/* table */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-left text-gray-500">
-                  <th className="px-6 py-3 font-medium">Job ID</th>
-                  <th className="px-6 py-3 font-medium">Vendor</th>
-                  <th className="px-6 py-3 font-medium text-right">Amount</th>
-                  <th className="px-6 py-3 font-medium">Status</th>
-                  <th className="px-6 py-3 font-medium">Attempts</th>
-                  <th className="px-6 py-3 font-medium">Last Error</th>
-                  <th className="px-6 py-3 font-medium">Created</th>
-                </tr>
-              </thead>
+          <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] overflow-hidden">
+            <table className="w-full text-[13px]">
+              <thead><tr className="border-b border-[var(--color-border-subtle)] text-left">
+                <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Job ID</th>
+                <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Vendor</th>
+                <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)] text-right">Amount</th>
+                <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Status</th>
+                <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Attempts</th>
+                <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Last Error</th>
+                <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Created</th>
+              </tr></thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
-                      <div className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-indigo-600 mb-2" />
-                      <p>Loading payout jobs...</p>
-                    </td>
-                  </tr>
+                  <tr><td colSpan={7} className="px-6 py-16 text-center">
+                    <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-ink-faint)] border-t-[var(--color-primary)] mb-3" />
+                    <p className="text-[13px] text-[var(--color-ink-muted)]">Loading…</p>
+                  </td></tr>
                 ) : jobs.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-400">
-                      No payout jobs found.
-                    </td>
+                  <tr><td colSpan={7} className="px-6 py-16 text-center text-[13px] text-[var(--color-ink-muted)]">No payout jobs found.</td></tr>
+                ) : jobs.map(job => (
+                  <tr key={job.id} className="border-b border-[var(--color-border-subtle)] last:border-0 hover:bg-[var(--color-surface-hover)] transition-colors">
+                    <td className="px-6 py-3.5 font-mono text-[12px] text-[var(--color-ink-secondary)] tabular-nums">{job.id.slice(0, 8)}…</td>
+                    <td className="px-6 py-3.5 font-mono text-[12px] text-[var(--color-ink-secondary)] tabular-nums">{job.vendor_id.slice(0, 8)}…</td>
+                    <td className="px-6 py-3.5 text-right font-bold text-[var(--color-ink)] tabular-nums">KES {(job.amount_cents / 100).toLocaleString()}</td>
+                    <td className="px-6 py-3.5"><StatusBadge status={job.status} /></td>
+                    <td className="px-6 py-3.5 text-[var(--color-ink-muted)] tabular-nums">{job.attempts}</td>
+                    <td className="px-6 py-3.5 text-[var(--color-danger)] text-[12px] max-w-[200px] truncate">{job.last_error || "—"}</td>
+                    <td className="px-6 py-3.5 text-[var(--color-ink-muted)] text-[12px]">{new Date(job.created_at).toLocaleString()}</td>
                   </tr>
-                ) : (
-                  jobs.map((job) => (
-                    <tr
-                      key={job.id}
-                      className="border-b border-gray-50 hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="px-6 py-3 font-mono text-xs">
-                        {job.id.slice(0, 8)}…
-                      </td>
-                      <td className="px-6 py-3 font-mono text-xs">
-                        {job.vendor_id.slice(0, 8)}…
-                      </td>
-                      <td className="px-6 py-3 text-right font-medium">
-                        KES {(job.amount_cents / 100).toLocaleString()}
-                      </td>
-                      <td className="px-6 py-3">
-                        <StatusBadge status={job.status} />
-                      </td>
-                      <td className="px-6 py-3 text-gray-600">{job.attempts}</td>
-                      <td className="px-6 py-3 text-red-600 text-xs max-w-[200px] truncate">
-                        {job.last_error || "—"}
-                      </td>
-                      <td className="px-6 py-3 text-gray-500 text-xs">
-                        {new Date(job.created_at).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
 
           {/* pagination */}
           <div className="flex items-center justify-between mt-4">
-            <button
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors"
-            >
-              Previous
-            </button>
-            <span className="text-sm text-gray-500">Page {page + 1}</span>
-            <button
-              onClick={() => {
-                if (jobs.length === limit) setPage((p) => p + 1);
-              }}
-              disabled={jobs.length < limit}
-              className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 disabled:opacity-40 hover:bg-gray-50 transition-colors"
-            >
-              Next
-            </button>
+            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+              className="px-4 py-2 text-[13px] font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] disabled:opacity-40 hover:bg-[var(--color-surface-hover)] transition-colors bg-white">Previous</button>
+            <span className="text-[13px] text-[var(--color-ink-muted)]">Page {page + 1}</span>
+            <button onClick={() => { if (jobs.length === limit) setPage(p => p + 1); }} disabled={jobs.length < limit}
+              className="px-4 py-2 text-[13px] font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] disabled:opacity-40 hover:bg-[var(--color-surface-hover)] transition-colors bg-white">Next</button>
           </div>
         </div>
       </main>
