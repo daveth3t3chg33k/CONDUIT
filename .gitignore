@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+target/
+*.o
+*.so
+*.dylib
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+dist/
+build/
+.next/
+*.log
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Freebuff
+.freebuff/
