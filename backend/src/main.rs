@@ -87,8 +87,11 @@ async fn main() -> anyhow::Result<()> {
         .route("/health/ready", get(handlers::health::ready));
 
     // Webhook ingress — authenticated by HMAC signature, not JWT
+    // M-Pesa callback routes — no auth (Safaricom calls these directly)
     let webhook_routes = Router::new()
-        .route("/api/v1/webhook/ingress", post(handlers::webhook::ingress));
+        .route("/api/v1/webhook/ingress", post(handlers::webhook::ingress))
+        .route("/api/v1/mpesa/b2c-callback", post(handlers::mpesa_callback::b2c_callback))
+        .route("/api/v1/mpesa/stk-callback", post(handlers::mpesa_callback::stk_callback));
 
     // Management API routes — all require JWT auth
     let management_routes = Router::new()
