@@ -83,14 +83,14 @@ export default function SplitRulesPage() {
           </div>
 
           {!selectedPlatformId ? (
-            <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] px-6 py-16 text-center">
+            <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] px-6 py-16 text-center">
               <p className="text-[13px] font-medium text-[var(--color-ink-secondary)]">Select a platform from the sidebar to configure its split rules.</p>
             </div>
           ) : (
             <>
               {error && <div className="mb-4 px-4 py-3 rounded-[var(--radius-md)] bg-[var(--color-danger-bg)] border border-red-200 text-[13px] text-[var(--color-danger)] font-medium">{error}</div>}
 
-              <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] overflow-hidden">
+              <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] overflow-hidden">
                 <table className="w-full text-[13px]">
                   <thead><tr className="border-b border-[var(--color-border-subtle)] text-left">
                     <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Vendor</th>
@@ -135,7 +135,7 @@ export default function SplitRulesPage() {
 
       {showForm && selectedPlatformId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="bg-white rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] max-w-md w-full mx-4 border border-[var(--color-border)]">
+          <div className="bg-[var(--color-surface)] rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] max-w-md w-full mx-4 border border-[var(--color-border)]">
             <div className="px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
               <h2 className="text-[15px] font-bold text-[var(--color-ink)]">New Split Rule</h2>
               <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-hover)] text-[var(--color-ink-muted)]">
@@ -147,7 +147,7 @@ export default function SplitRulesPage() {
               <div>
                 <label className="block text-[13px] font-semibold text-[var(--color-ink)] mb-1.5">Vendor *</label>
                 <select value={formVendorId} onChange={e => setFormVendorId(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-[var(--color-border)] rounded-[var(--radius-md)] text-[13px] focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] outline-none transition-shadow bg-white">
+                  className="w-full px-3 py-2.5 border border-[var(--color-border)] rounded-[var(--radius-md)] text-[13px] focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] outline-none transition-shadow bg-[var(--color-surface)]">
                   <option value="">Select a vendor</option>
                   {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                 </select>
@@ -156,11 +156,11 @@ export default function SplitRulesPage() {
                 <label className="block text-[13px] font-semibold text-[var(--color-ink)] mb-1.5">Rule Type *</label>
                 <div className="flex gap-2">
                   <button type="button" onClick={() => setFormRuleType("percentage")}
-                    className={`flex-1 px-4 py-2.5 text-[13px] font-semibold rounded-[var(--radius-md)] border transition-all duration-150 ${formRuleType === "percentage" ? "bg-[var(--color-primary-light)] text-[var(--color-primary)] border-[var(--color-primary)]" : "bg-white text-[var(--color-ink-secondary)] border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]"}`}>
+                    className={`flex-1 px-4 py-2.5 text-[13px] font-semibold rounded-[var(--radius-md)] border transition-all duration-150 ${formRuleType === "percentage" ? "bg-[var(--color-primary-light)] text-[var(--color-primary)] border-[var(--color-primary)]" : "bg-[var(--color-surface)] text-[var(--color-ink-secondary)] border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]"}`}>
                     Percentage
                   </button>
                   <button type="button" onClick={() => setFormRuleType("fixed")}
-                    className={`flex-1 px-4 py-2.5 text-[13px] font-semibold rounded-[var(--radius-md)] border transition-all duration-150 ${formRuleType === "fixed" ? "bg-[var(--color-primary-light)] text-[var(--color-primary)] border-[var(--color-primary)]" : "bg-white text-[var(--color-ink-secondary)] border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]"}`}>
+                    className={`flex-1 px-4 py-2.5 text-[13px] font-semibold rounded-[var(--radius-md)] border transition-all duration-150 ${formRuleType === "fixed" ? "bg-[var(--color-primary-light)] text-[var(--color-primary)] border-[var(--color-primary)]" : "bg-[var(--color-surface)] text-[var(--color-ink-secondary)] border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]"}`}>
                     Fixed (KES cents)
                   </button>
                 </div>

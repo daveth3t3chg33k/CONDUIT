@@ -57,7 +57,7 @@ export default function PayoutJobsPage() {
           </div>
 
           {!selectedPlatformId ? (
-            <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] px-6 py-16 text-center">
+            <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] px-6 py-16 text-center">
               <p className="text-[13px] font-medium text-[var(--color-ink-secondary)]">Select a platform from the sidebar to view its payout jobs.</p>
             </div>
           ) : (
@@ -65,19 +65,19 @@ export default function PayoutJobsPage() {
               {/* summary cards */}
               {!loading && jobs.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                  <div className="px-4 py-3 bg-white rounded-[var(--radius-md)] border border-[var(--color-border)]">
+                  <div className="px-4 py-3 bg-[var(--color-surface)] rounded-[var(--radius-md)] border border-[var(--color-border)]">
                     <p className="text-[11px] font-semibold text-[var(--color-ink-muted)] uppercase tracking-wider">Queued</p>
                     <p className="text-xl font-bold mt-1 tabular-nums text-[var(--color-ink)]">{stats.queued}</p>
                   </div>
-                  <div className="px-4 py-3 bg-white rounded-[var(--radius-md)] border border-[var(--color-border)]">
+                  <div className="px-4 py-3 bg-[var(--color-surface)] rounded-[var(--radius-md)] border border-[var(--color-border)]">
                     <p className="text-[11px] font-semibold text-[var(--color-ink-muted)] uppercase tracking-wider">Completed</p>
                     <p className="text-xl font-bold mt-1 tabular-nums text-emerald-600">{stats.completed}</p>
                   </div>
-                  <div className="px-4 py-3 bg-white rounded-[var(--radius-md)] border border-[var(--color-border)]">
+                  <div className="px-4 py-3 bg-[var(--color-surface)] rounded-[var(--radius-md)] border border-[var(--color-border)]">
                     <p className="text-[11px] font-semibold text-[var(--color-ink-muted)] uppercase tracking-wider">Manual Review</p>
                     <p className="text-xl font-bold mt-1 tabular-nums text-orange-600">{stats.failed}</p>
                   </div>
-                  <div className="px-4 py-3 bg-white rounded-[var(--radius-md)] border border-[var(--color-border)]">
+                  <div className="px-4 py-3 bg-[var(--color-surface)] rounded-[var(--radius-md)] border border-[var(--color-border)]">
                     <p className="text-[11px] font-semibold text-[var(--color-ink-muted)] uppercase tracking-wider">Total Amount</p>
                     <p className="text-xl font-bold mt-1 tabular-nums text-[var(--color-ink)]">KES {(stats.totalAmount / 100).toLocaleString()}</p>
                   </div>
@@ -89,7 +89,7 @@ export default function PayoutJobsPage() {
                 {STATUS_FILTERS.map(f => (
                   <button key={f} onClick={() => { setActiveFilter(f); setPage(0); }}
                     className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150
-                      ${activeFilter === f ? "bg-[var(--color-primary-light)] text-[var(--color-primary)] ring-1 ring-[var(--color-primary)]" : "bg-white text-[var(--color-ink-secondary)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]"}`}>
+                      ${activeFilter === f ? "bg-[var(--color-primary-light)] text-[var(--color-primary)] ring-1 ring-[var(--color-primary)]" : "bg-[var(--color-surface)] text-[var(--color-ink-secondary)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]"}`}>
                     {f === "all" ? "All" : f.replace(/_/g, " ")}
                   </button>
                 ))}
@@ -97,7 +97,7 @@ export default function PayoutJobsPage() {
 
               {error && <div className="mb-4 px-4 py-3 rounded-[var(--radius-md)] bg-[var(--color-danger-bg)] border border-red-200 text-[13px] text-[var(--color-danger)] font-medium">{error}</div>}
 
-              <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] overflow-hidden">
+              <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] overflow-hidden">
                 <table className="w-full text-[13px]">
                   <thead><tr className="border-b border-[var(--color-border-subtle)] text-left">
                     <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Job ID</th>
@@ -134,10 +134,10 @@ export default function PayoutJobsPage() {
               {/* pagination */}
               <div className="flex items-center justify-between mt-4">
                 <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                  className="px-4 py-2 text-[13px] font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] disabled:opacity-40 hover:bg-[var(--color-surface-hover)] transition-colors bg-white">Previous</button>
+                  className="px-4 py-2 text-[13px] font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] disabled:opacity-40 hover:bg-[var(--color-surface-hover)] transition-colors bg-[var(--color-surface)]">Previous</button>
                 <span className="text-[13px] text-[var(--color-ink-muted)]">Page {page + 1}</span>
                 <button onClick={() => { if (jobs.length === limit) setPage(p => p + 1); }} disabled={jobs.length < limit}
-                  className="px-4 py-2 text-[13px] font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] disabled:opacity-40 hover:bg-[var(--color-surface-hover)] transition-colors bg-white">Next</button>
+                  className="px-4 py-2 text-[13px] font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] disabled:opacity-40 hover:bg-[var(--color-surface-hover)] transition-colors bg-[var(--color-surface)]">Next</button>
               </div>
             </>
           )}

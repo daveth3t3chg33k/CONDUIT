@@ -60,7 +60,7 @@ export default function TransactionsPage() {
           </div>
 
           {!selectedPlatformId ? (
-            <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] px-6 py-16 text-center">
+            <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] px-6 py-16 text-center">
               <p className="text-[13px] font-medium text-[var(--color-ink-secondary)]">Select a platform from the sidebar to view its transactions.</p>
             </div>
           ) : (
@@ -69,7 +69,7 @@ export default function TransactionsPage() {
                 {STATUS_FILTERS.map(f => (
                   <button key={f} onClick={() => { setActiveFilter(f); setPage(0); }}
                     className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150
-                      ${activeFilter === f ? "bg-[var(--color-primary-light)] text-[var(--color-primary)] ring-1 ring-[var(--color-primary)]" : "bg-white text-[var(--color-ink-secondary)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]"}`}>
+                      ${activeFilter === f ? "bg-[var(--color-primary-light)] text-[var(--color-primary)] ring-1 ring-[var(--color-primary)]" : "bg-[var(--color-surface)] text-[var(--color-ink-secondary)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]"}`}>
                     {f === "all" ? "All" : f.replace(/_/g, " ")}
                   </button>
                 ))}
@@ -77,7 +77,7 @@ export default function TransactionsPage() {
 
               {error && <div className="mb-4 px-4 py-3 rounded-[var(--radius-md)] bg-[var(--color-danger-bg)] border border-red-200 text-[13px] text-[var(--color-danger)] font-medium">{error}</div>}
 
-              <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] overflow-hidden">
+              <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] overflow-hidden">
                 <table className="w-full text-[13px]">
                   <thead>
                     <tr className="border-b border-[var(--color-border-subtle)] text-left">
@@ -111,10 +111,10 @@ export default function TransactionsPage() {
 
               <div className="flex items-center justify-between mt-4">
                 <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                  className="px-4 py-2 text-[13px] font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] disabled:opacity-40 hover:bg-[var(--color-surface-hover)] transition-colors bg-white">Previous</button>
+                  className="px-4 py-2 text-[13px] font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] disabled:opacity-40 hover:bg-[var(--color-surface-hover)] transition-colors bg-[var(--color-surface)]">Previous</button>
                 <span className="text-[13px] text-[var(--color-ink-muted)]">Page {page + 1}</span>
                 <button onClick={() => { if (transactions.length === limit) setPage(p => p + 1); }} disabled={transactions.length < limit}
-                  className="px-4 py-2 text-[13px] font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] disabled:opacity-40 hover:bg-[var(--color-surface-hover)] transition-colors bg-white">Next</button>
+                  className="px-4 py-2 text-[13px] font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] disabled:opacity-40 hover:bg-[var(--color-surface-hover)] transition-colors bg-[var(--color-surface)]">Next</button>
               </div>
             </>
           )}
@@ -123,8 +123,8 @@ export default function TransactionsPage() {
 
       {selectedTx && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="bg-white rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] max-w-2xl w-full mx-4 max-h-[85vh] overflow-y-auto border border-[var(--color-border)]">
-            <div className="px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between sticky top-0 bg-white z-10 rounded-t-[var(--radius-xl)]">
+          <div className="bg-[var(--color-surface)] rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] max-w-2xl w-full mx-4 max-h-[85vh] overflow-y-auto border border-[var(--color-border)]">
+            <div className="px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between sticky top-0 bg-[var(--color-surface)] z-10 rounded-t-[var(--radius-xl)]">
               <h2 className="text-[15px] font-bold text-[var(--color-ink)]">Transaction Detail</h2>
               <button onClick={() => { setSelectedTx(null); setLedger(null); }} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-hover)] text-[var(--color-ink-muted)]">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>

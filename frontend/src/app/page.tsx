@@ -131,7 +131,7 @@ export default function DashboardPage() {
                     : "Select one from the sidebar to see what's happening."}
                 </p>
               </div>
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-[var(--color-border)] shadow-[var(--shadow-xs)]">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-surface)] border border-[var(--color-border)] shadow-[var(--shadow-xs)]">
                 <div className={`w-2 h-2 rounded-full ${serverStatus === "ok" ? "bg-emerald-500 animate-pulse-dot" : serverStatus === "degraded" ? "bg-amber-500" : "bg-red-500"}`} />
                 <span className="text-[12px] font-medium text-[var(--color-ink-secondary)]">
                   {serverStatus === "ok" ? "All systems go" : serverStatus === "degraded" ? "A bit wobbly" : "Checking…"}
@@ -143,7 +143,7 @@ export default function DashboardPage() {
           {!selectedPlatformId ? (
             /* Empty state — not centered, left-aligned, conversational */
             <div className="animate-page-enter">
-              <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] p-8 max-w-lg">
+              <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] p-8 max-w-lg">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 flex items-center justify-center mb-5 animate-float">
                   <svg className="w-7 h-7 text-[var(--color-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -227,7 +227,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Recent transactions — with personality */}
-              <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] animate-card-enter" style={{ animationDelay: "300ms" }}>
+              <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] animate-card-enter" style={{ animationDelay: "300ms" }}>
                 <div className="px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
                   <div>
                     <h2 className="text-[14px] font-bold text-[var(--color-ink)]">Latest activity</h2>
@@ -254,7 +254,7 @@ export default function DashboardPage() {
                 ) : transactions.length === 0 ? (
                   <div className="px-6 py-12">
                     <div className="flex items-start gap-4 p-4 bg-[var(--color-canvas)] rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)]">
-                      <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shrink-0 animate-float">
+                      <div className="w-10 h-10 rounded-xl bg-[var(--color-surface)] flex items-center justify-center shrink-0 animate-float">
                         <svg className="w-5 h-5 text-[var(--color-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                         </svg>
@@ -262,7 +262,7 @@ export default function DashboardPage() {
                       <div>
                         <p className="text-[13px] font-semibold text-[var(--color-ink)]">Waiting on payments</p>
                         <p className="text-[12px] text-[var(--color-ink-muted)] mt-0.5 leading-relaxed">
-                          Once your payment gateway sends a webhook here, transactions will show up in this table. Make sure the webhook URL is pointing to <code className="px-1.5 py-0.5 bg-white rounded text-[11px] font-mono text-[var(--color-primary)]">/api/v1/webhook/ingress</code>
+                          Once your payment gateway sends a webhook here, transactions will show up in this table. Make sure the webhook URL is pointing to <code className="px-1.5 py-0.5 bg-[var(--color-surface)] rounded text-[11px] font-mono text-[var(--color-primary)]">/api/v1/webhook/ingress</code>
                         </p>
                       </div>
                     </div>
@@ -309,7 +309,7 @@ export default function DashboardPage() {
               {/* Quick action hint — feels like a helpful friend, not a template */}
               {transactions.length > 0 && (
                 <div className="mt-6 flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-50/80 to-violet-50/60 rounded-[var(--radius-lg)] border border-indigo-100 animate-card-enter" style={{ animationDelay: "500ms" }}>
-                  <div className="w-8 h-8 rounded-lg bg-white/80 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-[var(--color-surface)]/80 flex items-center justify-center shrink-0">
                     <svg className="w-4 h-4 text-[var(--color-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>

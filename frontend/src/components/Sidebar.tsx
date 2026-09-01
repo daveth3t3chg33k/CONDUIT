@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { clearToken } from "@/lib/api";
 import { usePlatform } from "@/lib/PlatformContext";
+import { useTheme } from "@/lib/ThemeContext";
 
 const navigation = [
   {
@@ -70,6 +71,8 @@ export default function Sidebar() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [hoveredNav, setHoveredNav] = useState<string | null>(null);
 
+  const { toggleTheme, isDark } = useTheme();
+
   const {
     platforms,
     selectedPlatformId,
@@ -119,7 +122,7 @@ export default function Sidebar() {
   return (
     <>
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-[var(--color-border)] px-4 py-3 flex items-center justify-between">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-[var(--color-surface)]/80 backdrop-blur-xl border-b border-[var(--color-border)] px-4 py-3 flex items-center justify-between">
         <span className="text-base font-bold tracking-tight text-[var(--color-ink)]">Conduit</span>
         <button onClick={() => setMobileOpen(!mobileOpen)} className="p-2 rounded-lg hover:bg-[var(--color-surface-hover)] transition-colors btn-press">
           <svg className="h-5 w-5 text-[var(--color-ink-secondary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -131,7 +134,7 @@ export default function Sidebar() {
       </div>
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-[var(--color-border)] transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:inset-auto ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-[var(--color-surface)] border-r border-[var(--color-border)] transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:inset-auto ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex flex-col h-full">
           {/* Brand */}
           <div className="px-5 h-16 flex items-center gap-3 border-b border-[var(--color-border-subtle)]">
@@ -184,9 +187,28 @@ export default function Sidebar() {
             )}
           </div>
 
-          {/* Divider */}
+          {/* Theme toggle + divider */}
           <div className="px-5 py-2">
-            <div className="h-px bg-[var(--color-border-subtle)]" />
+            <div className="flex items-center justify-between mb-2">
+              <div className="h-px flex-1 bg-[var(--color-border-subtle)]" />
+              <button
+                onClick={toggleTheme}
+                className="mx-2 p-1.5 rounded-lg hover:bg-[var(--color-surface-hover)] transition-all duration-200 btn-press group"
+                title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                <div className="relative w-5 h-5">
+                  {/* Sun icon */}
+                  <svg className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${isDark ? "opacity-100 rotate-0 scale-100" : "opacity-0 rotate-90 scale-50"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  {/* Moon icon */}
+                  <svg className={`absolute inset-0 w-5 h-5 transition-all duration-300 ${isDark ? "opacity-0 -rotate-90 scale-50" : "opacity-100 rotate-0 scale-100"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  </svg>
+                </div>
+              </button>
+              <div className="h-px flex-1 bg-[var(--color-border-subtle)]" />
+            </div>
           </div>
 
           {/* Navigation */}
@@ -228,7 +250,7 @@ export default function Sidebar() {
           {/* User section */}
           <div className="px-3 pb-4">
             <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-[var(--color-canvas)] border border-[var(--color-border-subtle)] transition-all duration-200 hover:border-[var(--color-border)]">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--color-primary-light)] to-indigo-50 flex items-center justify-center text-[var(--color-primary)] text-xs font-bold ring-2 ring-white">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--color-primary-light)] to-indigo-50 flex items-center justify-center text-[var(--color-primary)] text-xs font-bold ring-2 ring-[var(--color-surface)]">
                 {initial}
               </div>
               <div className="flex-1 min-w-0">
@@ -257,7 +279,7 @@ export default function Sidebar() {
       {/* Create Platform Modal */}
       {showCreatePlatform && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="bg-white rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] max-w-md w-full mx-4 border border-[var(--color-border)] animate-card-enter">
+          <div className="bg-[var(--color-surface)] rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] max-w-md w-full mx-4 border border-[var(--color-border)] animate-card-enter">
             <div className="px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
               <div>
                 <h2 className="text-[15px] font-bold text-[var(--color-ink)]">Create Platform</h2>

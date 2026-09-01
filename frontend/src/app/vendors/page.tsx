@@ -74,14 +74,14 @@ export default function VendorsPage() {
           </div>
 
           {!selectedPlatformId ? (
-            <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] px-6 py-16 text-center">
+            <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] px-6 py-16 text-center">
               <p className="text-[13px] font-medium text-[var(--color-ink-secondary)]">Select a platform from the sidebar to manage its vendors.</p>
             </div>
           ) : (
             <>
               {error && <div className="mb-4 px-4 py-3 rounded-[var(--radius-md)] bg-[var(--color-danger-bg)] border border-red-200 text-[13px] text-[var(--color-danger)] font-medium">{error}</div>}
 
-              <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] overflow-hidden">
+              <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] overflow-hidden">
                 <table className="w-full text-[13px]">
                   <thead><tr className="border-b border-[var(--color-border-subtle)] text-left">
                     <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Name</th>
@@ -117,7 +117,7 @@ export default function VendorsPage() {
 
       {showForm && selectedPlatformId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="bg-white rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] max-w-md w-full mx-4 border border-[var(--color-border)]">
+          <div className="bg-[var(--color-surface)] rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] max-w-md w-full mx-4 border border-[var(--color-border)]">
             <div className="px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
               <h2 className="text-[15px] font-bold text-[var(--color-ink)]">Add Vendor</h2>
               <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-hover)] text-[var(--color-ink-muted)]">

@@ -67,15 +67,15 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <div className="bg-white rounded-[var(--radius-xl)] border border-[var(--color-border)] shadow-[var(--shadow-lg)] p-6 relative">
+        <div className="bg-[var(--color-surface)] rounded-[var(--radius-xl)] border border-[var(--color-border)] shadow-[var(--shadow-lg)] p-6 relative">
           {/* Mode toggle */}
           <div className="flex bg-[var(--color-canvas)] rounded-[var(--radius-md)] p-1 mb-6">
             <button onClick={() => { setMode("login"); setError(null); }}
-              className={`flex-1 py-2.5 text-[13px] font-semibold rounded-[var(--radius-sm)] transition-all duration-200 btn-press ${mode === "login" ? "bg-white text-[var(--color-ink)] shadow-sm" : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink-secondary)]"}`}>
+              className={`flex-1 py-2.5 text-[13px] font-semibold rounded-[var(--radius-sm)] transition-all duration-200 btn-press ${mode === "login" ? "bg-[var(--color-surface)] text-[var(--color-ink)] shadow-sm" : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink-secondary)]"}`}>
               Sign in
             </button>
             <button onClick={() => { setMode("signup"); setError(null); }}
-              className={`flex-1 py-2.5 text-[13px] font-semibold rounded-[var(--radius-sm)] transition-all duration-200 btn-press ${mode === "signup" ? "bg-white text-[var(--color-ink)] shadow-sm" : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink-secondary)]"}`}>
+              className={`flex-1 py-2.5 text-[13px] font-semibold rounded-[var(--radius-sm)] transition-all duration-200 btn-press ${mode === "signup" ? "bg-[var(--color-surface)] text-[var(--color-ink)] shadow-sm" : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink-secondary)]"}`}>
               Create account
             </button>
           </div>

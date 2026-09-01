@@ -27,7 +27,7 @@ export default function StatCard({ label, value, change, trend = "neutral", icon
     <div className={`relative overflow-hidden rounded-[var(--radius-lg)] border p-5 card-hover group animate-card-enter ${
       accent
         ? "bg-gradient-to-br from-[var(--color-primary)] via-indigo-500 to-violet-600 border-transparent text-white shadow-lg shadow-indigo-200/50"
-        : "bg-white border-[var(--color-border)]"
+        : "bg-[var(--color-surface)] border-[var(--color-border)]"
     }`}>
       {/* Subtle background pattern on accent card */}
       {accent && (

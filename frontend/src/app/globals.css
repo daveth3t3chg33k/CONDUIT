@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* ---- Color tokens ---- */
+  /* ---- Color tokens (light mode) ---- */
   --color-primary: #4F46E5;
   --color-primary-hover: #4338CA;
   --color-primary-light: #EEF2FF;
@@ -31,6 +31,7 @@
   --color-accent: #F59E0B;
   --color-accent-light: #FEF3C7;
 
+  /* Shared layout tokens */
   --font-sans: var(--font-geist-sans), "Inter", system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono), "JetBrains Mono", ui-monospace, monospace;
 
@@ -44,6 +45,43 @@
   --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
   --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.06), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
   --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.15);
+}
+
+/* ---- Dark mode tokens ---- */
+.dark {
+  --color-primary: #818CF8;
+  --color-primary-hover: #A5B4FC;
+  --color-primary-light: rgba(129, 140, 248, 0.15);
+  --color-primary-ring: rgba(129, 140, 248, 0.3);
+
+  --color-canvas: #0B0F1A;
+  --color-surface: #111827;
+  --color-surface-hover: #1E293B;
+  --color-border: #1E293B;
+  --color-border-subtle: #1E293B;
+
+  --color-ink: #F1F5F9;
+  --color-ink-secondary: #94A3B8;
+  --color-ink-muted: #64748B;
+  --color-ink-faint: #334155;
+
+  --color-success: #34D399;
+  --color-success-bg: rgba(52, 211, 153, 0.12);
+  --color-warning: #FBBF24;
+  --color-warning-bg: rgba(251, 191, 36, 0.12);
+  --color-danger: #F87171;
+  --color-danger-bg: rgba(248, 113, 113, 0.12);
+  --color-info: #60A5FA;
+  --color-info-bg: rgba(96, 165, 250, 0.12);
+
+  --color-accent: #FBBF24;
+  --color-accent-light: rgba(251, 191, 36, 0.12);
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+  --shadow-glow: 0 0 20px rgba(129, 140, 248, 0.15);
 }
 
 @theme inline {
