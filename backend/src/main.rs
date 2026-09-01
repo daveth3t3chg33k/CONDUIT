@@ -61,7 +61,6 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let worker_state = Arc::clone(&state);
-    let worker_token = Arc::clone(&state);
 
     // Spawn the payout worker in the background
     tokio::spawn(services::payout_worker::run(worker_state));
@@ -219,7 +218,9 @@ async fn jwt_auth_middleware(
 
 #[derive(Debug, serde::Deserialize)]
 struct Claims {
+    #[allow(dead_code)]
     sub: String,
+    #[allow(dead_code)]
     exp: usize,
 }
 
