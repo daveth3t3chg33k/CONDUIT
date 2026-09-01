@@ -5,7 +5,6 @@ use crate::error::{AppError, Result};
 use crate::models::*;
 
 pub struct SplitResult {
-    pub platform_commission_cents: i64,
     pub vendor_credits: Vec<VendorCredit>,
 }
 
@@ -166,7 +165,6 @@ pub async fn compute_and_record(
     );
 
     Ok(SplitResult {
-        platform_commission_cents: platform_commission,
         vendor_credits,
     })
 }

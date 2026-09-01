@@ -13,8 +13,17 @@ pub enum AppError {
     #[error("unauthorized")]
     Unauthorized,
 
+    #[error("forbidden")]
+    Forbidden,
+
     #[error("unprocessable: {0}")]
     Unprocessable(String),
+
+    #[error("rate limited")]
+    RateLimited,
+
+    #[error("payload too large")]
+    PayloadTooLarge,
 
     #[error("internal error")]
     Internal(#[from] anyhow::Error),
@@ -35,7 +44,10 @@ impl IntoResponse for AppError {
             AppError::NotFound => (StatusCode::NOT_FOUND, self.to_string()),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
             AppError::Unauthorized => (StatusCode::UNAUTHORIZED, self.to_string()),
+            AppError::Forbidden => (StatusCode::FORBIDDEN, self.to_string()),
             AppError::Unprocessable(msg) => (StatusCode::UNPROCESSABLE_ENTITY, msg.clone()),
+            AppError::RateLimited => (StatusCode::TOO_MANY_REQUESTS, self.to_string()),
+            AppError::PayloadTooLarge => (StatusCode::PAYLOAD_TOO_LARGE, self.to_string()),
             AppError::Internal(err) => {
                 tracing::error!(error = ?err, "internal error");
                 (StatusCode::INTERNAL_SERVER_ERROR, "something went wrong".into())

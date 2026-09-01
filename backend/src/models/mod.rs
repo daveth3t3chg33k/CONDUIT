@@ -24,7 +24,6 @@ pub struct CreatePlatform {
 #[derive(Debug, Deserialize)]
 pub struct UpdatePlatform {
     pub name: Option<String>,
-    pub webhook_secret: Option<String>,
 }
 
 // ---------------------------------------------------------------------------

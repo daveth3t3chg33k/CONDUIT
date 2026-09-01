@@ -8,9 +8,9 @@ authors = ["kam1rah"]
 [dependencies]
 # web framework
 axum = { version = "0.7", features = ["macros"] }
-axum-extra = { version = "0.9", features = ["typed-header"] }
+axum-extra = { version = "0.9", features = ["typed-header", "query"] }
 tower = { version = "0.4", features = ["full"] }
-tower-http = { version = "0.5", features = ["cors", "trace", "request-id"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "request-id", "limit"] }
 
 # async runtime
 tokio = { version = "1", features = ["full"] }
@@ -35,6 +35,8 @@ redis = { version = "0.25", features = ["tokio-comp", "connection-manager"] }
 sha2 = "0.10"
 hex = "0.4"
 hmac = "0.12"
+rand = "0.8"
+jsonwebtoken = "9"
 
 # config
 dotenvy = "0.15"
@@ -55,3 +57,6 @@ anyhow = "1"
 
 # http client (for downstream payout calls)
 reqwest = { version = "0.11", features = ["json"] }
+
+# input validation
+garde = "0.20"

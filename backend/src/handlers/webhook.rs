@@ -25,37 +25,23 @@ pub struct WebhookPayload {
 pub async fn ingress(
     State(state): State<std::sync::Arc<AppState>>,
     headers: HeaderMap,
-    Json(payload): Json<WebhookPayload>,
+    body_bytes: axum::body::Bytes,
 ) -> Result<Json<serde_json::Value>> {
-    let platform = extract_and_verify_platform(&state, &headers, &payload).await?;
+    // Parse payload from the raw bytes so we can store the full body
+    let payload: WebhookPayload = serde_json::from_slice(&body_bytes)
+        .map_err(|e| AppError::BadRequest(format!("invalid JSON: {e}")))?;
 
-    let existing: Option<(uuid::Uuid,)> = sqlx::query_as(
-        "SELECT id FROM transactions WHERE external_ref = $1 AND platform_id = $2",
-    )
-    .bind(&payload.transaction_id)
-    .bind(platform.id)
-    .fetch_optional(&state.db)
-    .await?;
+    let platform = extract_and_verify_platform(&state, &headers, &payload, &body_bytes).await?;
 
-    if existing.is_some() {
-        tracing::info!(tx_ref = %payload.transaction_id, "duplicate webhook — skipping");
-        return Ok(Json(serde_json::json!({
-            "status": "ignored",
-            "reason": "duplicate",
-        })));
-    }
-
-    let raw_payload_json = payload
-        .metadata
-        .as_ref()
-        .map(|m| serde_json::to_string(m).unwrap_or_default());
-
+    // Atomic idempotency check — use INSERT ON CONFLICT to handle concurrent delivery
+    let raw_payload_json = String::from_utf8_lossy(&body_bytes).to_string();
     let status_str = TransactionStatus::Received.to_string();
 
-    let transaction = sqlx::query_as::<_, Transaction>(
+    let insert_result = sqlx::query_as::<_, Transaction>(
         r#"
         INSERT INTO transactions (platform_id, external_ref, amount_cents, currency, status, raw_payload)
         VALUES ($1, $2, $3, $4, $5::transaction_status, $6)
+        ON CONFLICT (external_ref, platform_id) DO NOTHING
         RETURNING id, platform_id, external_ref, amount_cents, currency,
                   status as "status: TransactionStatus",
                   raw_payload, received_at, processed_at
@@ -67,13 +53,26 @@ pub async fn ingress(
     .bind(&payload.currency)
     .bind(&status_str)
     .bind(&raw_payload_json)
-    .fetch_one(&state.db)
+    .fetch_optional(&state.db)
     .await?;
+
+    let transaction = match insert_result {
+        Some(tx) => tx,
+        None => {
+            // Duplicate webhook — the ON CONFLICT did nothing, so this is a repeat
+            tracing::info!(tx_ref = %payload.transaction_id, "duplicate webhook — already processed");
+            return Ok(Json(serde_json::json!({
+                "status": "ignored",
+                "reason": "duplicate",
+            })));
+        }
+    };
 
     tracing::info!(
         tx_id = %transaction.id,
         tx_ref = %payload.transaction_id,
         amount = payload.amount,
+        source_ip = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()).unwrap_or("unknown"),
         "webhook received, computing splits",
     );
 
@@ -103,13 +102,28 @@ pub async fn ingress(
         });
 
         let mut redis = state.redis.clone();
-        let _ = redis::cmd("LPUSH")
+        if let Err(e) = redis::cmd("LPUSH")
             .arg("conduit:payout_queue")
             .arg(serde_json::to_string(&job_payload)?)
             .query_async::<_, ()>(&mut redis)
-            .await;
-
-        tracing::info!(job_id = %payout_id, vendor_id = %entry.vendor_id, amount = entry.amount_cents, "payout job queued");
+            .await
+        {
+            // Redis is down — log the error and mark the job for retry
+            tracing::error!(
+                job_id = %payout_id,
+                error = ?e,
+                "failed to enqueue payout job — will be retried by worker"
+            );
+            sqlx::query(
+                "UPDATE payout_jobs SET last_error = $1 WHERE id = $2",
+            )
+            .bind(format!("redis enqueue failed: {e}"))
+            .bind(payout_id)
+            .execute(&state.db)
+            .await?;
+        } else {
+            tracing::info!(job_id = %payout_id, vendor_id = %entry.vendor_id, amount = entry.amount_cents, "payout job queued");
+        }
     }
 
     let status_str = TransactionStatus::SplitComputed.to_string();
@@ -132,6 +146,7 @@ async fn extract_and_verify_platform(
     state: &AppState,
     headers: &HeaderMap,
     payload: &WebhookPayload,
+    body_bytes: &[u8],
 ) -> Result<Platform> {
     let platform_ref = payload
         .metadata
@@ -157,20 +172,21 @@ async fn extract_and_verify_platform(
         .and_then(|v| v.to_str().ok())
         .ok_or_else(|| AppError::BadRequest("missing signature header".into()))?;
 
-    let body_bytes = serde_json::to_vec(payload)?;
-
     use hmac::{Hmac, Mac};
     use sha2::Sha256;
     type HmacSha256 = Hmac<Sha256>;
 
     let mut mac = HmacSha256::new_from_slice(platform.webhook_secret.as_bytes())
         .map_err(|e| AppError::Internal(anyhow::anyhow!("hmac init error: {e}")))?;
-    mac.update(&body_bytes);
-    let computed = hex::encode(mac.finalize().into_bytes());
+    mac.update(body_bytes);
 
-    if signature_header != computed {
-        return Err(AppError::Unauthorized);
-    }
+    // Parse the expected signature from hex
+    let expected_bytes = hex::decode(signature_header)
+        .map_err(|_| AppError::BadRequest("invalid signature format (expected hex)".into()))?;
+
+    // Constant-time comparison — prevents timing attacks
+    mac.verify_slice(&expected_bytes)
+        .map_err(|_| AppError::Unauthorized)?;
 
     Ok(platform)
 }

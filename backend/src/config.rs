@@ -12,10 +12,20 @@ pub struct Config {
     pub database_max_connections: u32,
     pub redis_url: String,
     pub jwt_secret: String,
+    /// Comma-separated list of allowed CORS origins. Use "*" for dev.
+    pub cors_origins: Vec<String>,
 }
 
 impl Config {
     pub fn from_env() -> anyhow::Result<Self> {
+        let cors_raw = env::var("CORS_ORIGINS")
+            .unwrap_or_else(|_| "http://localhost:3000".into());
+        let cors_origins: Vec<String> = cors_raw
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect();
+
         Ok(Self {
             host: env::var("CONDUIT_HOST").unwrap_or_else(|_| "0.0.0.0".into()),
             port: env::var("CONDUIT_PORT")
@@ -30,6 +40,7 @@ impl Config {
                 .unwrap_or_else(|_| "redis://127.0.0.1:6379".into()),
             jwt_secret: env::var("JWT_SECRET")
                 .expect("JWT_SECRET must be set"),
+            cors_origins,
         })
     }
 }

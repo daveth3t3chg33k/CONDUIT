@@ -6,7 +6,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================================================
 -- platforms
 -- ============================================================================
-CREATE TABLE platforms (
+CREATE TABLE IF NOT EXISTS platforms (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name          VARCHAR(255) NOT NULL,
     webhook_secret VARCHAR(255) NOT NULL,
@@ -14,12 +14,12 @@ CREATE TABLE platforms (
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_platforms_name ON platforms (name);
+CREATE INDEX IF NOT EXISTS idx_platforms_name ON platforms (name);
 
 -- ============================================================================
 -- vendors
 -- ============================================================================
-CREATE TABLE vendors (
+CREATE TABLE IF NOT EXISTS vendors (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     platform_id   UUID NOT NULL REFERENCES platforms(id) ON DELETE CASCADE,
     name          VARCHAR(255) NOT NULL,
@@ -29,15 +29,19 @@ CREATE TABLE vendors (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_vendors_platform ON vendors (platform_id);
-CREATE INDEX idx_vendors_phone ON vendors (phone_number) WHERE phone_number IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_vendors_platform ON vendors (platform_id);
+CREATE INDEX IF NOT EXISTS idx_vendors_phone ON vendors (phone_number) WHERE phone_number IS NOT NULL;
 
 -- ============================================================================
 -- split_rules
 -- ============================================================================
-CREATE TYPE split_rule_type AS ENUM ('percentage', 'fixed');
+DO $$ BEGIN
+    CREATE TYPE split_rule_type AS ENUM ('percentage', 'fixed');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TABLE split_rules (
+CREATE TABLE IF NOT EXISTS split_rules (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     platform_id   UUID NOT NULL REFERENCES platforms(id) ON DELETE CASCADE,
     vendor_id     UUID NOT NULL REFERENCES vendors(id) ON DELETE CASCADE,
@@ -48,15 +52,19 @@ CREATE TABLE split_rules (
     CHECK (value >= 0)
 );
 
-CREATE INDEX idx_split_rules_platform ON split_rules (platform_id) WHERE is_active = true;
-CREATE INDEX idx_split_rules_vendor ON split_rules (vendor_id);
+CREATE INDEX IF NOT EXISTS idx_split_rules_platform ON split_rules (platform_id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_split_rules_vendor ON split_rules (vendor_id);
 
 -- ============================================================================
 -- transactions
 -- ============================================================================
-CREATE TYPE transaction_status AS ENUM ('received', 'split_computed', 'paid_out', 'failed');
+DO $$ BEGIN
+    CREATE TYPE transaction_status AS ENUM ('received', 'split_computed', 'paid_out', 'failed');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TABLE transactions (
+CREATE TABLE IF NOT EXISTS transactions (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     platform_id   UUID NOT NULL REFERENCES platforms(id),
     external_ref  VARCHAR(255) NOT NULL,
@@ -70,19 +78,23 @@ CREATE TABLE transactions (
 );
 
 -- unique constraint for idempotency — one external ref per platform
-CREATE UNIQUE INDEX idx_transactions_external_ref
+CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_external_ref
     ON transactions (external_ref, platform_id);
 
-CREATE INDEX idx_transactions_platform ON transactions (platform_id);
-CREATE INDEX idx_transactions_status ON transactions (status);
-CREATE INDEX idx_transactions_received ON transactions (received_at DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_platform ON transactions (platform_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions (status);
+CREATE INDEX IF NOT EXISTS idx_transactions_received ON transactions (received_at DESC);
 
 -- ============================================================================
 -- ledger_entries
 -- ============================================================================
-CREATE TYPE ledger_entry_type AS ENUM ('debit', 'credit');
+DO $$ BEGIN
+    CREATE TYPE ledger_entry_type AS ENUM ('debit', 'credit');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TABLE ledger_entries (
+CREATE TABLE IF NOT EXISTS ledger_entries (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     transaction_id  UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
     account_name    VARCHAR(100) NOT NULL,
@@ -93,15 +105,19 @@ CREATE TABLE ledger_entries (
     CHECK (amount_cents > 0)
 );
 
-CREATE INDEX idx_ledger_entries_transaction ON ledger_entries (transaction_id);
-CREATE INDEX idx_ledger_entries_account ON ledger_entries (account_name);
+CREATE INDEX IF NOT EXISTS idx_ledger_entries_transaction ON ledger_entries (transaction_id);
+CREATE INDEX IF NOT EXISTS idx_ledger_entries_account ON ledger_entries (account_name);
 
 -- ============================================================================
 -- payout_jobs
 -- ============================================================================
-CREATE TYPE payout_status AS ENUM ('queued', 'dispatching', 'completed', 'failed', 'manual_review');
+DO $$ BEGIN
+    CREATE TYPE payout_status AS ENUM ('queued', 'dispatching', 'completed', 'failed', 'manual_review');
+EXCEPTION
+    WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE TABLE payout_jobs (
+CREATE TABLE IF NOT EXISTS payout_jobs (
     id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     transaction_id  UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
     vendor_id       UUID NOT NULL REFERENCES vendors(id),
@@ -115,8 +131,8 @@ CREATE TABLE payout_jobs (
     CHECK (amount_cents > 0)
 );
 
-CREATE INDEX idx_payout_jobs_status ON payout_jobs (status);
-CREATE INDEX idx_payout_jobs_transaction ON payout_jobs (transaction_id);
-CREATE INDEX idx_payout_jobs_vendor ON payout_jobs (vendor_id);
-CREATE INDEX idx_payout_jobs_retry ON payout_jobs (next_retry_at)
+CREATE INDEX IF NOT EXISTS idx_payout_jobs_status ON payout_jobs (status);
+CREATE INDEX IF NOT EXISTS idx_payout_jobs_transaction ON payout_jobs (transaction_id);
+CREATE INDEX IF NOT EXISTS idx_payout_jobs_vendor ON payout_jobs (vendor_id);
+CREATE INDEX IF NOT EXISTS idx_payout_jobs_retry ON payout_jobs (next_retry_at)
     WHERE status = 'queued' AND next_retry_at IS NOT NULL;

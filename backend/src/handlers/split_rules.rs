@@ -11,6 +11,20 @@ pub async fn create(
     Path(platform_id): Path<Uuid>,
     Json(body): Json<CreateSplitRule>,
 ) -> Result<Json<SplitRule>> {
+    // Validate value is positive
+    if body.value <= 0 {
+        return Err(AppError::BadRequest(
+            "split rule value must be greater than zero".into(),
+        ));
+    }
+
+    // Validate percentage rules don't exceed 100% (10000 basis points)
+    if matches!(body.rule_type, crate::models::SplitRuleType::Percentage) && body.value > 10_000 {
+        return Err(AppError::BadRequest(
+            "percentage split cannot exceed 100% (10000 basis points)".into(),
+        ));
+    }
+
     let vendor_exists: Option<(Uuid,)> = sqlx::query_as(
         "SELECT id FROM vendors WHERE id = $1 AND platform_id = $2",
     )
@@ -89,6 +103,14 @@ pub async fn update(
     Path(rule_id): Path<Uuid>,
     Json(body): Json<UpdateSplitRule>,
 ) -> Result<Json<SplitRule>> {
+    if let Some(value) = body.value {
+        if value <= 0 {
+            return Err(AppError::BadRequest(
+                "split rule value must be greater than zero".into(),
+            ));
+        }
+    }
+
     let rule = sqlx::query_as::<_, SplitRule>(
         r#"
         UPDATE split_rules

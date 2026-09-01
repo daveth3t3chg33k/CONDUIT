@@ -1,9 +1,16 @@
 use axum::extract::{Path, State, Json};
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::error::{AppError, Result};
 use crate::models::{CreateVendor, UpdateVendor, Vendor};
 use crate::AppState;
+
+#[derive(Debug, Deserialize)]
+pub struct ListParams {
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+}
 
 /// POST /api/v1/platforms/:platform_id/vendors
 pub async fn create(
@@ -11,6 +18,27 @@ pub async fn create(
     Path(platform_id): Path<Uuid>,
     Json(body): Json<CreateVendor>,
 ) -> Result<Json<Vendor>> {
+    // Input validation
+    if body.name.trim().is_empty() {
+        return Err(AppError::BadRequest("vendor name must not be empty".into()));
+    }
+    if body.name.len() > 255 {
+        return Err(AppError::BadRequest("vendor name must be 255 characters or fewer".into()));
+    }
+    if let Some(ref phone) = body.phone_number {
+        if phone.len() > 20 {
+            return Err(AppError::BadRequest("phone number must be 20 characters or fewer".into()));
+        }
+    }
+    if let Some(ref email) = body.email {
+        if email.len() > 255 {
+            return Err(AppError::BadRequest("email must be 255 characters or fewer".into()));
+        }
+        if !email.contains('@') {
+            return Err(AppError::BadRequest("email format is invalid".into()));
+        }
+    }
+
     let exists: Option<(Uuid,)> = sqlx::query_as(
         "SELECT id FROM platforms WHERE id = $1",
     )
@@ -33,7 +61,7 @@ pub async fn create(
     )
     .bind(id)
     .bind(platform_id)
-    .bind(&body.name)
+    .bind(body.name.trim())
     .bind(&body.phone_number)
     .bind(&body.bank_account)
     .bind(&body.email)
@@ -48,16 +76,23 @@ pub async fn create(
 pub async fn list(
     State(state): State<std::sync::Arc<AppState>>,
     Path(platform_id): Path<Uuid>,
+    axum::extract::Query(params): axum::extract::Query<ListParams>,
 ) -> Result<Json<Vec<Vendor>>> {
+    let limit = params.limit.unwrap_or(50).min(200) as i64;
+    let offset = params.offset.unwrap_or(0) as i64;
+
     let vendors = sqlx::query_as::<_, Vendor>(
         r#"
         SELECT id, platform_id, name, phone_number, bank_account, email, created_at
         FROM vendors
         WHERE platform_id = $1
         ORDER BY created_at ASC
+        LIMIT $2 OFFSET $3
         "#,
     )
     .bind(platform_id)
+    .bind(limit)
+    .bind(offset)
     .fetch_all(&state.db)
     .await?;
 
@@ -70,6 +105,23 @@ pub async fn update(
     Path(vendor_id): Path<Uuid>,
     Json(body): Json<UpdateVendor>,
 ) -> Result<Json<Vendor>> {
+    if let Some(ref name) = body.name {
+        if name.trim().is_empty() {
+            return Err(AppError::BadRequest("vendor name must not be empty".into()));
+        }
+        if name.len() > 255 {
+            return Err(AppError::BadRequest("vendor name must be 255 characters or fewer".into()));
+        }
+    }
+    if let Some(ref email) = body.email {
+        if email.len() > 255 {
+            return Err(AppError::BadRequest("email must be 255 characters or fewer".into()));
+        }
+        if !email.contains('@') {
+            return Err(AppError::BadRequest("email format is invalid".into()));
+        }
+    }
+
     let vendor = sqlx::query_as::<_, Vendor>(
         r#"
         UPDATE vendors
@@ -82,7 +134,7 @@ pub async fn update(
         "#,
     )
     .bind(vendor_id)
-    .bind(&body.name)
+    .bind(body.name.as_deref().map(str::trim))
     .bind(&body.phone_number)
     .bind(&body.bank_account)
     .bind(&body.email)

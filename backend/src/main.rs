@@ -1,8 +1,12 @@
 use std::sync::Arc;
 
-use axum::{routing::get, routing::post, routing::put, Router};
+use axum::http::{HeaderValue, Method, Request, StatusCode};
+use axum::response::Response;
+use axum::routing::get;
+use axum::{routing::post, routing::put, Router};
 use sqlx::postgres::PgPoolOptions;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -38,6 +42,7 @@ async fn main() -> anyhow::Result<()> {
 
     let db = PgPoolOptions::new()
         .max_connections(cfg.database_max_connections)
+        .test_before_acquire(true)
         .connect(&cfg.database_url)
         .await?;
     tracing::info!("connected to postgres");
@@ -55,18 +60,39 @@ async fn main() -> anyhow::Result<()> {
         config: cfg.clone(),
     });
 
-    // clone before state gets moved into the router
     let worker_state = Arc::clone(&state);
+    let worker_token = Arc::clone(&state);
 
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    // Spawn the payout worker in the background
+    tokio::spawn(services::payout_worker::run(worker_state));
 
-    let app = Router::new()
+    // CORS — lock down to configured origins (allow all only in dev)
+    let cors = if cfg.cors_origins.contains(&"*".to_string()) {
+        CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+            .allow_headers(Any)
+    } else {
+        let origins: Vec<HeaderValue> = cfg.cors_origins.iter()
+            .filter_map(|o| o.parse().ok())
+            .collect();
+        CorsLayer::new()
+            .allow_origin(origins)
+            .allow_methods([Method::GET, Method::POST, Method::PUT, Method::DELETE, Method::OPTIONS])
+            .allow_headers(Any)
+    };
+
+    // Routes that do NOT require authentication
+    let public_routes = Router::new()
         .route("/health", get(handlers::health::live))
-        .route("/health/ready", get(handlers::health::ready))
-        .route("/api/v1/webhook/ingress", post(handlers::webhook::ingress))
+        .route("/health/ready", get(handlers::health::ready));
+
+    // Webhook ingress — authenticated by HMAC signature, not JWT
+    let webhook_routes = Router::new()
+        .route("/api/v1/webhook/ingress", post(handlers::webhook::ingress));
+
+    // Management API routes — all require JWT auth
+    let management_routes = Router::new()
         .route("/api/v1/platforms", post(handlers::platforms::create))
         .route(
             "/api/v1/platforms/:platform_id",
@@ -103,20 +129,98 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/api/v1/payout-jobs/:job_id",
             get(handlers::payout_jobs::get_one),
-        )
+        );
+
+    // JWT auth layer — applied only to management routes
+    let jwt_secret = cfg.jwt_secret.clone();
+    let authed_management = management_routes.layer(axum::middleware::from_fn({
+        let secret = jwt_secret.clone();
+        move |req: Request<axum::body::Body>, next: axum::middleware::Next| {
+            let secret = secret.clone();
+            async move { jwt_auth_middleware(req, next, &secret).await }
+        }
+    }));
+
+    let app = public_routes
+        .merge(webhook_routes)
+        .merge(authed_management)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
+        // 1MB body limit for webhook payloads
+        .layer(RequestBodyLimitLayer::new(1024 * 1024))
         .with_state(state);
 
     let addr = format!("{}:{}", cfg.host, cfg.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     tracing::info!("listening on {addr}");
 
-    // spawn the payout worker in the background
-    tokio::spawn(services::payout_worker::run(worker_state));
+    // Graceful shutdown on SIGTERM / SIGINT
+    let shutdown_signal = async {
+        let ctrl_c = tokio::signal::ctrl_c();
+        #[cfg(unix)]
+        {
+            let mut sigterm = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                .expect("failed to install SIGTERM handler");
+            tokio::select! {
+                _ = ctrl_c => tracing::info!("received SIGINT"),
+                _ = sigterm.recv() => tracing::info!("received SIGTERM"),
+            }
+        }
+        #[cfg(not(unix))]
+        {
+            ctrl_c.await.ok();
+            tracing::info!("received SIGINT");
+        }
+    };
 
-    axum::serve(listener, app).await?;
+    tracing::info!("waiting for shutdown signal...");
+
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal)
+        .await?;
+
+    tracing::info!("server shut down gracefully");
     Ok(())
+}
+
+async fn jwt_auth_middleware(
+    req: Request<axum::body::Body>,
+    next: axum::middleware::Next,
+    secret: &str,
+) -> std::result::Result<Response, StatusCode> {
+    let auth_header = req
+        .headers()
+        .get("Authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "));
+
+    let token = match auth_header {
+        Some(t) => t,
+        None => {
+            return Err(StatusCode::UNAUTHORIZED);
+        }
+    };
+
+    let validation = jsonwebtoken::Validation::default();
+    let token_data = jsonwebtoken::decode::<Claims>(
+        token,
+        &jsonwebtoken::DecodingKey::from_secret(secret.as_bytes()),
+        &validation,
+    );
+
+    match token_data {
+        Ok(_) => Ok(next.run(req).await),
+        Err(e) => {
+            tracing::warn!(error = %e, "invalid JWT token");
+            Err(StatusCode::UNAUTHORIZED)
+        }
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct Claims {
+    sub: String,
+    exp: usize,
 }
 
 async fn run_migrations(db: &sqlx::PgPool) -> anyhow::Result<()> {
