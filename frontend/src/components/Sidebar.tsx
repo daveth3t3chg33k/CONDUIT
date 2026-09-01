@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 import { clearToken } from "@/lib/api";
+import { usePlatform } from "@/lib/PlatformContext";
 
 const navigation = [
   {
@@ -58,6 +59,17 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [adminName, setAdminName] = useState("Admin");
+  const [showCreatePlatform, setShowCreatePlatform] = useState(false);
+  const [newPlatformName, setNewPlatformName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  const {
+    platforms,
+    selectedPlatformId,
+    selectPlatform,
+    createPlatform,
+  } = usePlatform();
 
   useEffect(() => {
     try {
@@ -72,7 +84,27 @@ export default function Sidebar() {
   function handleLogout() {
     clearToken();
     localStorage.removeItem("conduit_admin");
+    localStorage.removeItem("conduit_platform_id");
     router.push("/login");
+  }
+
+  async function handleCreatePlatform(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newPlatformName.trim()) {
+      setCreateError("Name is required");
+      return;
+    }
+    setCreating(true);
+    setCreateError(null);
+    try {
+      await createPlatform(newPlatformName.trim());
+      setShowCreatePlatform(false);
+      setNewPlatformName("");
+    } catch (e) {
+      setCreateError(e instanceof Error ? e.message : "Failed to create platform");
+    } finally {
+      setCreating(false);
+    }
   }
 
   const initial = adminName.charAt(0).toUpperCase();
@@ -107,8 +139,45 @@ export default function Sidebar() {
             </div>
           </div>
 
+          {/* Platform selector */}
+          <div className="px-3 pt-4 pb-2">
+            <label className="px-3 text-[10px] font-semibold text-[var(--color-ink-muted)] uppercase tracking-wider">Platform</label>
+            <div className="mt-1.5 relative">
+              <select
+                value={selectedPlatformId || ""}
+                onChange={(e) => selectPlatform(e.target.value)}
+                className="w-full appearance-none px-3 py-2 pr-8 text-[13px] font-medium text-[var(--color-ink)] bg-[var(--color-canvas)] border border-[var(--color-border)] rounded-[var(--radius-md)] focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] outline-none transition-shadow cursor-pointer truncate"
+              >
+                {platforms.length === 0 ? (
+                  <option value="" disabled>No platforms</option>
+                ) : (
+                  platforms.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))
+                )}
+              </select>
+              <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-ink-muted)] pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+            <button
+              onClick={() => setShowCreatePlatform(true)}
+              className="mt-1.5 w-full px-3 py-1.5 text-[12px] font-semibold text-[var(--color-primary)] hover:bg-[var(--color-primary-light)] rounded-[var(--radius-md)] transition-colors text-left flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              New platform
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="px-5 py-2">
+            <div className="h-px bg-[var(--color-border-subtle)]" />
+          </div>
+
           {/* Navigation */}
-          <nav className="flex-1 px-3 py-4 space-y-0.5">
+          <nav className="flex-1 px-3 py-2 space-y-0.5">
             {navigation.map((item) => {
               const isActive = pathname === item.href;
               return (
@@ -158,6 +227,41 @@ export default function Sidebar() {
       {/* Mobile overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 z-30 bg-black/20 backdrop-blur-sm lg:hidden" onClick={() => setMobileOpen(false)} />
+      )}
+
+      {/* Create Platform Modal */}
+      {showCreatePlatform && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] max-w-md w-full mx-4 border border-[var(--color-border)]">
+            <div className="px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
+              <h2 className="text-[15px] font-bold text-[var(--color-ink)]">Create Platform</h2>
+              <button onClick={() => { setShowCreatePlatform(false); setNewPlatformName(""); setCreateError(null); }} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-hover)] text-[var(--color-ink-muted)]">
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <form onSubmit={handleCreatePlatform} className="px-6 py-5 space-y-4">
+              {createError && <div className="px-3 py-2 rounded-[var(--radius-sm)] bg-[var(--color-danger-bg)] text-[var(--color-danger)] text-[13px] font-medium">{createError}</div>}
+              <div>
+                <label className="block text-[13px] font-semibold text-[var(--color-ink)] mb-1.5">Platform Name *</label>
+                <input
+                  type="text"
+                  value={newPlatformName}
+                  onChange={e => setNewPlatformName(e.target.value)}
+                  className="w-full px-3 py-2.5 border border-[var(--color-border)] rounded-[var(--radius-md)] text-[13px] focus:ring-2 focus:ring-[var(--color-primary-ring)] focus:border-[var(--color-primary)] outline-none transition-shadow"
+                  placeholder="e.g. Acme Marketplace"
+                  autoFocus
+                />
+                <p className="mt-1.5 text-[11px] text-[var(--color-ink-muted)]">
+                  A webhook secret will be generated automatically. Save it — it won&apos;t be shown again.
+                </p>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => { setShowCreatePlatform(false); setNewPlatformName(""); setCreateError(null); }} className="flex-1 px-4 py-2.5 text-[13px] font-semibold rounded-[var(--radius-md)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)] transition-colors">Cancel</button>
+                <button type="submit" disabled={creating} className="flex-1 px-4 py-2.5 text-[13px] font-semibold rounded-[var(--radius-md)] bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] disabled:opacity-50 transition-colors">{creating ? "Creating…" : "Create Platform"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </>
   );

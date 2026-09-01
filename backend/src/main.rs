@@ -100,7 +100,7 @@ async fn main() -> anyhow::Result<()> {
         // Auth: /me requires a valid token
         .route("/api/v1/auth/me", get(handlers::auth::me))
         // Platform management
-        .route("/api/v1/platforms", post(handlers::platforms::create))
+        .route("/api/v1/platforms", get(handlers::platforms::list).post(handlers::platforms::create))
         .route(
             "/api/v1/platforms/:platform_id",
             get(handlers::platforms::get_one)

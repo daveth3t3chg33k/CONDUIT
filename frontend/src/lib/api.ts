@@ -163,6 +163,7 @@ export const api = {
   me: () => request<AdminPublic>("/api/v1/auth/me"),
 
   // platforms
+  listPlatforms: () => request<Platform[]>("/api/v1/platforms"),
   createPlatform: (data: { name: string }) =>
     request<Platform>("/api/v1/platforms", {
       method: "POST",

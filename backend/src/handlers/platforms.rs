@@ -67,6 +67,19 @@ pub async fn create(
     Ok(Json(serde_json::to_value(response)?))
 }
 
+/// GET /api/v1/platforms
+pub async fn list(
+    State(state): State<std::sync::Arc<AppState>>,
+) -> Result<Json<Vec<PlatformResponse>>> {
+    let platforms = sqlx::query_as::<_, crate::models::Platform>(
+        "SELECT id, name, webhook_secret, created_at, updated_at FROM platforms ORDER BY created_at DESC",
+    )
+    .fetch_all(&state.db)
+    .await?;
+
+    Ok(Json(platforms.into_iter().map(PlatformResponse::from).collect()))
+}
+
 /// GET /api/v1/platforms/:platform_id
 pub async fn get_one(
     State(state): State<std::sync::Arc<AppState>>,

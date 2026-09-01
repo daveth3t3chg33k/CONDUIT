@@ -3,8 +3,10 @@
 import { useEffect, useState, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
 import { api, Vendor } from "@/lib/api";
+import { usePlatform } from "@/lib/PlatformContext";
 
 export default function VendorsPage() {
+  const { selectedPlatformId, selectedPlatform } = usePlatform();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -13,32 +15,39 @@ export default function VendorsPage() {
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formBank, setFormBank] = useState("");
-  const [formPlatformId, setFormPlatformId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const loadVendors = useCallback(async () => {
+    if (!selectedPlatformId) {
+      setVendors([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true); setError(null);
     try {
-      const platforms = await api.listTransactions({ limit: 1 });
-      if (platforms.length > 0) {
-        const pid = platforms[0].platform_id;
-        setFormPlatformId(pid);
-        setVendors(await api.listVendors(pid));
-      }
+      setVendors(await api.listVendors(selectedPlatformId));
     } catch (e) { setError(e instanceof Error ? e.message : "Failed to load"); }
     finally { setLoading(false); }
-  }, []);
+  }, [selectedPlatformId]);
 
   useEffect(() => { loadVendors(); }, [loadVendors]);
+
+  // Reset form when platform changes
+  useEffect(() => { setShowForm(false); }, [selectedPlatformId]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!formName.trim()) { setFormError("Name is required"); return; }
-    if (!formPlatformId) { setFormError("No platform available. Create one first via the API."); return; }
+    if (!selectedPlatformId) { setFormError("No platform selected"); return; }
     setSubmitting(true); setFormError(null);
     try {
-      const vendor = await api.createVendor(formPlatformId, { name: formName.trim(), phone_number: formPhone.trim() || undefined, email: formEmail.trim() || undefined, bank_account: formBank.trim() || undefined });
+      const vendor = await api.createVendor(selectedPlatformId, {
+        name: formName.trim(),
+        phone_number: formPhone.trim() || undefined,
+        email: formEmail.trim() || undefined,
+        bank_account: formBank.trim() || undefined,
+      });
       setVendors(prev => [...prev, vendor]);
       setShowForm(false); setFormName(""); setFormPhone(""); setFormEmail(""); setFormBank("");
     } catch (e) { setFormError(e instanceof Error ? e.message : "Failed to create"); }
@@ -53,48 +62,60 @@ export default function VendorsPage() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-[22px] font-bold tracking-tight text-[var(--color-ink)]">Vendors</h1>
-              <p className="text-[13px] text-[var(--color-ink-secondary)] mt-1">Manage vendors and their payout destinations.</p>
+              <p className="text-[13px] text-[var(--color-ink-secondary)] mt-1">
+                {selectedPlatform ? `Manage vendors for ${selectedPlatform.name}` : "Select a platform to view vendors"}
+              </p>
             </div>
-            <button onClick={() => setShowForm(true)} className="px-4 py-2 bg-[var(--color-primary)] text-white text-[13px] font-semibold rounded-[var(--radius-md)] hover:bg-[var(--color-primary-hover)] transition-colors shadow-sm">
-              + Add Vendor
-            </button>
+            {selectedPlatformId && (
+              <button onClick={() => setShowForm(true)} className="px-4 py-2 bg-[var(--color-primary)] text-white text-[13px] font-semibold rounded-[var(--radius-md)] hover:bg-[var(--color-primary-hover)] transition-colors shadow-sm">
+                + Add Vendor
+              </button>
+            )}
           </div>
 
-          {error && <div className="mb-4 px-4 py-3 rounded-[var(--radius-md)] bg-[var(--color-danger-bg)] border border-red-200 text-[13px] text-[var(--color-danger)] font-medium">{error}</div>}
+          {!selectedPlatformId ? (
+            <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] px-6 py-16 text-center">
+              <p className="text-[13px] font-medium text-[var(--color-ink-secondary)]">Select a platform from the sidebar to manage its vendors.</p>
+            </div>
+          ) : (
+            <>
+              {error && <div className="mb-4 px-4 py-3 rounded-[var(--radius-md)] bg-[var(--color-danger-bg)] border border-red-200 text-[13px] text-[var(--color-danger)] font-medium">{error}</div>}
 
-          <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] overflow-hidden">
-            <table className="w-full text-[13px]">
-              <thead><tr className="border-b border-[var(--color-border-subtle)] text-left">
-                <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Name</th>
-                <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Phone</th>
-                <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Email</th>
-                <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Bank Account</th>
-                <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Created</th>
-              </tr></thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={5} className="px-6 py-16 text-center">
-                    <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-ink-faint)] border-t-[var(--color-primary)] mb-3" />
-                    <p className="text-[13px] text-[var(--color-ink-muted)]">Loading…</p>
-                  </td></tr>
-                ) : vendors.length === 0 ? (
-                  <tr><td colSpan={5} className="px-6 py-16 text-center text-[13px] text-[var(--color-ink-muted)]">No vendors registered yet.</td></tr>
-                ) : vendors.map(v => (
-                  <tr key={v.id} className="border-b border-[var(--color-border-subtle)] last:border-0 hover:bg-[var(--color-surface-hover)] transition-colors">
-                    <td className="px-6 py-3.5 font-semibold text-[var(--color-ink)]">{v.name}</td>
-                    <td className="px-6 py-3.5 text-[var(--color-ink-secondary)] tabular-nums">{v.phone_number || "—"}</td>
-                    <td className="px-6 py-3.5 text-[var(--color-ink-secondary)]">{v.email || "—"}</td>
-                    <td className="px-6 py-3.5 text-[var(--color-ink-secondary)] font-mono text-[12px]">{v.bank_account || "—"}</td>
-                    <td className="px-6 py-3.5 text-[var(--color-ink-muted)] text-[12px]">{new Date(v.created_at).toLocaleDateString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] overflow-hidden">
+                <table className="w-full text-[13px]">
+                  <thead><tr className="border-b border-[var(--color-border-subtle)] text-left">
+                    <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Name</th>
+                    <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Phone</th>
+                    <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Email</th>
+                    <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Bank Account</th>
+                    <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Created</th>
+                  </tr></thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={5} className="px-6 py-16 text-center">
+                        <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-ink-faint)] border-t-[var(--color-primary)] mb-3" />
+                        <p className="text-[13px] text-[var(--color-ink-muted)]">Loading…</p>
+                      </td></tr>
+                    ) : vendors.length === 0 ? (
+                      <tr><td colSpan={5} className="px-6 py-16 text-center text-[13px] text-[var(--color-ink-muted)]">No vendors registered yet.</td></tr>
+                    ) : vendors.map(v => (
+                      <tr key={v.id} className="border-b border-[var(--color-border-subtle)] last:border-0 hover:bg-[var(--color-surface-hover)] transition-colors">
+                        <td className="px-6 py-3.5 font-semibold text-[var(--color-ink)]">{v.name}</td>
+                        <td className="px-6 py-3.5 text-[var(--color-ink-secondary)] tabular-nums">{v.phone_number || "—"}</td>
+                        <td className="px-6 py-3.5 text-[var(--color-ink-secondary)]">{v.email || "—"}</td>
+                        <td className="px-6 py-3.5 text-[var(--color-ink-secondary)] font-mono text-[12px]">{v.bank_account || "—"}</td>
+                        <td className="px-6 py-3.5 text-[var(--color-ink-muted)] text-[12px]">{new Date(v.created_at).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
       </main>
 
-      {showForm && (
+      {showForm && selectedPlatformId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
           <div className="bg-white rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] max-w-md w-full mx-4 border border-[var(--color-border)]">
             <div className="px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">

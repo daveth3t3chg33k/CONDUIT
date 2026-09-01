@@ -4,10 +4,12 @@ import { useEffect, useState, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
 import StatusBadge from "@/components/StatusBadge";
 import { api, Transaction, LedgerResponse } from "@/lib/api";
+import { usePlatform } from "@/lib/PlatformContext";
 
 const STATUS_FILTERS = ["all", "received", "split_computed", "paid_out", "failed"];
 
 export default function TransactionsPage() {
+  const { selectedPlatformId, selectedPlatform } = usePlatform();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,13 +21,22 @@ export default function TransactionsPage() {
   const [ledgerLoading, setLedgerLoading] = useState(false);
 
   const loadTransactions = useCallback(async () => {
+    if (!selectedPlatformId) {
+      setTransactions([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true); setError(null);
-    try { setTransactions(await api.listTransactions({ limit, offset: page * limit })); }
-    catch (e) { setError(e instanceof Error ? e.message : "Failed to load"); }
+    try {
+      setTransactions(await api.listTransactions({ platform_id: selectedPlatformId, limit, offset: page * limit }));
+    } catch (e) { setError(e instanceof Error ? e.message : "Failed to load"); }
     finally { setLoading(false); }
-  }, [page]);
+  }, [selectedPlatformId, page]);
 
   useEffect(() => { loadTransactions(); }, [loadTransactions]);
+
+  // Reset filter when platform changes
+  useEffect(() => { setActiveFilter("all"); setPage(0); }, [selectedPlatformId]);
 
   const filtered = activeFilter === "all" ? transactions : transactions.filter(tx => tx.status === activeFilter);
 
@@ -43,60 +54,70 @@ export default function TransactionsPage() {
         <div className="px-6 lg:px-10 py-8 max-w-[1400px] mx-auto">
           <div className="mb-6">
             <h1 className="text-[22px] font-bold tracking-tight text-[var(--color-ink)]">Transactions</h1>
-            <p className="text-[13px] text-[var(--color-ink-secondary)] mt-1">All incoming payments and their processing status.</p>
+            <p className="text-[13px] text-[var(--color-ink-secondary)] mt-1">
+              {selectedPlatform ? `All incoming payments for ${selectedPlatform.name}` : "Select a platform to view transactions"}
+            </p>
           </div>
 
-          <div className="flex items-center gap-2 mb-6 flex-wrap">
-            {STATUS_FILTERS.map(f => (
-              <button key={f} onClick={() => { setActiveFilter(f); setPage(0); }}
-                className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150
-                  ${activeFilter === f ? "bg-[var(--color-primary-light)] text-[var(--color-primary)] ring-1 ring-[var(--color-primary)]" : "bg-white text-[var(--color-ink-secondary)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]"}`}>
-                {f === "all" ? "All" : f.replace(/_/g, " ")}
-              </button>
-            ))}
-          </div>
-
-          {error && <div className="mb-4 px-4 py-3 rounded-[var(--radius-md)] bg-[var(--color-danger-bg)] border border-red-200 text-[13px] text-[var(--color-danger)] font-medium">{error}</div>}
-
-          <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] overflow-hidden">
-            <table className="w-full text-[13px]">
-              <thead>
-                <tr className="border-b border-[var(--color-border-subtle)] text-left">
-                  <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Transaction ID</th>
-                  <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">External Ref</th>
-                  <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)] text-right">Amount</th>
-                  <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Status</th>
-                  <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Received</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={5} className="px-6 py-16 text-center">
-                    <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-ink-faint)] border-t-[var(--color-primary)] mb-3" />
-                    <p className="text-[13px] text-[var(--color-ink-muted)]">Loading…</p>
-                  </td></tr>
-                ) : filtered.length === 0 ? (
-                  <tr><td colSpan={5} className="px-6 py-16 text-center text-[13px] text-[var(--color-ink-muted)]">No transactions found.</td></tr>
-                ) : filtered.map(tx => (
-                  <tr key={tx.id} onClick={() => openDetail(tx)} className="border-b border-[var(--color-border-subtle)] last:border-0 hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer">
-                    <td className="px-6 py-3.5 font-mono text-[12px] text-[var(--color-ink-secondary)] tabular-nums">{tx.id.slice(0, 8)}…</td>
-                    <td className="px-6 py-3.5">{tx.external_ref}</td>
-                    <td className="px-6 py-3.5 text-right font-semibold text-[var(--color-ink)] tabular-nums">{tx.currency} {(tx.amount_cents / 100).toLocaleString()}</td>
-                    <td className="px-6 py-3.5"><StatusBadge status={tx.status} /></td>
-                    <td className="px-6 py-3.5 text-[var(--color-ink-muted)]">{new Date(tx.received_at).toLocaleString()}</td>
-                  </tr>
+          {!selectedPlatformId ? (
+            <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] px-6 py-16 text-center">
+              <p className="text-[13px] font-medium text-[var(--color-ink-secondary)]">Select a platform from the sidebar to view its transactions.</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 mb-6 flex-wrap">
+                {STATUS_FILTERS.map(f => (
+                  <button key={f} onClick={() => { setActiveFilter(f); setPage(0); }}
+                    className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150
+                      ${activeFilter === f ? "bg-[var(--color-primary-light)] text-[var(--color-primary)] ring-1 ring-[var(--color-primary)]" : "bg-white text-[var(--color-ink-secondary)] border border-[var(--color-border)] hover:bg-[var(--color-surface-hover)]"}`}>
+                    {f === "all" ? "All" : f.replace(/_/g, " ")}
+                  </button>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
 
-          <div className="flex items-center justify-between mt-4">
-            <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-              className="px-4 py-2 text-[13px] font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] disabled:opacity-40 hover:bg-[var(--color-surface-hover)] transition-colors bg-white">Previous</button>
-            <span className="text-[13px] text-[var(--color-ink-muted)]">Page {page + 1}</span>
-            <button onClick={() => { if (transactions.length === limit) setPage(p => p + 1); }} disabled={transactions.length < limit}
-              className="px-4 py-2 text-[13px] font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] disabled:opacity-40 hover:bg-[var(--color-surface-hover)] transition-colors bg-white">Next</button>
-          </div>
+              {error && <div className="mb-4 px-4 py-3 rounded-[var(--radius-md)] bg-[var(--color-danger-bg)] border border-red-200 text-[13px] text-[var(--color-danger)] font-medium">{error}</div>}
+
+              <div className="bg-white rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] overflow-hidden">
+                <table className="w-full text-[13px]">
+                  <thead>
+                    <tr className="border-b border-[var(--color-border-subtle)] text-left">
+                      <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Transaction ID</th>
+                      <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">External Ref</th>
+                      <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)] text-right">Amount</th>
+                      <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Status</th>
+                      <th className="px-6 py-3 font-semibold text-[var(--color-ink-muted)]">Received</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={5} className="px-6 py-16 text-center">
+                        <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-ink-faint)] border-t-[var(--color-primary)] mb-3" />
+                        <p className="text-[13px] text-[var(--color-ink-muted)]">Loading…</p>
+                      </td></tr>
+                    ) : filtered.length === 0 ? (
+                      <tr><td colSpan={5} className="px-6 py-16 text-center text-[13px] text-[var(--color-ink-muted)]">No transactions found.</td></tr>
+                    ) : filtered.map(tx => (
+                      <tr key={tx.id} onClick={() => openDetail(tx)} className="border-b border-[var(--color-border-subtle)] last:border-0 hover:bg-[var(--color-surface-hover)] transition-colors cursor-pointer">
+                        <td className="px-6 py-3.5 font-mono text-[12px] text-[var(--color-ink-secondary)] tabular-nums">{tx.id.slice(0, 8)}…</td>
+                        <td className="px-6 py-3.5">{tx.external_ref}</td>
+                        <td className="px-6 py-3.5 text-right font-semibold text-[var(--color-ink)] tabular-nums">{tx.currency} {(tx.amount_cents / 100).toLocaleString()}</td>
+                        <td className="px-6 py-3.5"><StatusBadge status={tx.status} /></td>
+                        <td className="px-6 py-3.5 text-[var(--color-ink-muted)]">{new Date(tx.received_at).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex items-center justify-between mt-4">
+                <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+                  className="px-4 py-2 text-[13px] font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] disabled:opacity-40 hover:bg-[var(--color-surface-hover)] transition-colors bg-white">Previous</button>
+                <span className="text-[13px] text-[var(--color-ink-muted)]">Page {page + 1}</span>
+                <button onClick={() => { if (transactions.length === limit) setPage(p => p + 1); }} disabled={transactions.length < limit}
+                  className="px-4 py-2 text-[13px] font-medium rounded-[var(--radius-md)] border border-[var(--color-border)] disabled:opacity-40 hover:bg-[var(--color-surface-hover)] transition-colors bg-white">Next</button>
+              </div>
+            </>
+          )}
         </div>
       </main>
 
