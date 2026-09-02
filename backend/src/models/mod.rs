@@ -246,3 +246,22 @@ pub struct AdminPublic {
     pub name: String,
     pub created_at: DateTime<Utc>,
 }
+
+// ---------------------------------------------------------------------------
+// Audit Log
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
+pub struct AuditLog {
+    pub id: Uuid,
+    pub admin_id: Option<Uuid>,
+    pub admin_email: Option<String>,
+    pub method: String,
+    pub path: String,
+    pub status_code: i16,
+    pub ip_address: Option<String>,
+    pub user_agent: Option<String>,
+    pub duration_ms: i64,
+    pub request_body: Option<serde_json::Value>,
+    pub created_at: DateTime<Utc>,
+}

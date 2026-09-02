@@ -12,6 +12,7 @@ use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::GovernorLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod audit;
 mod config;
 mod error;
 mod handlers;
@@ -65,6 +66,8 @@ pub struct AppState {
         handlers::webhook::ingress,
         handlers::mpesa_callback::b2c_callback,
         handlers::mpesa_callback::stk_callback,
+        handlers::audit::list,
+        handlers::audit::get_one,
     ),
     components(schemas(
         error::ErrorResponse,
@@ -98,6 +101,7 @@ pub struct AppState {
         handlers::stats::DailyAggregate,
         handlers::stats::AggregateResponse,
         rate_limit::RateLimitError,
+        models::AuditLog,
     )),
     tags(
         (name = "health", description = "Liveness and readiness probes"),
@@ -109,6 +113,7 @@ pub struct AppState {
         (name = "payout-jobs", description = "Payout job monitoring and retry status"),
         (name = "webhooks", description = "Payment gateway webhook ingestion"),
         (name = "m-pesa", description = "M-Pesa Daraja callback receivers"),
+        (name = "audit-logs", description = "Audit trail of all mutating API actions"),
     ),
     security(
         ("BearerAuth" = ["read", "write"]),
@@ -256,6 +261,9 @@ async fn main() -> anyhow::Result<()> {
             put(handlers::split_rules::update)
                 .delete(handlers::split_rules::deactivate),
         )
+        // Audit logs
+        .route("/api/v1/audit-logs", get(handlers::audit::list))
+        .route("/api/v1/audit-logs/:log_id", get(handlers::audit::get_one))
         // Transactions & payouts
         .route("/api/v1/transactions", get(handlers::transactions::list))
         .route(
@@ -283,7 +291,12 @@ async fn main() -> anyhow::Result<()> {
             }
         }))
         // API rate limiting — per-admin bucket after JWT extraction
-        .layer(GovernorLayer { config: Arc::new(api_limiter) });
+        .layer(GovernorLayer { config: Arc::new(api_limiter) })
+        // Audit logging — records all mutating actions
+        .layer(axum::middleware::from_fn_with_state(
+            Arc::clone(&state),
+            audit::audit_log_middleware,
+        ));
 
     // ---- Swagger UI ----
     let swagger_ui = utoipa_swagger_ui::SwaggerUi::new("/swagger-ui")
@@ -376,6 +389,9 @@ async fn run_migrations(db: &sqlx::PgPool) -> anyhow::Result<()> {
 
     let migration_002 = include_str!("../migrations/002_admins.sql");
     sqlx::raw_sql(migration_002).execute(db).await?;
+
+    let migration_003 = include_str!("../migrations/003_audit_logs.sql");
+    sqlx::raw_sql(migration_003).execute(db).await?;
 
     Ok(())
 }
