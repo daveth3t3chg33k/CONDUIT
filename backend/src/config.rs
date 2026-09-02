@@ -23,6 +23,14 @@ pub struct Config {
     pub daraja_initiator_name: String,
     /// When true, the payout worker simulates M-Pesa calls instead of hitting the real API.
     pub daraja_sim_mode: bool,
+
+    // Rate limiting
+    /// Burst size for authenticated API requests (per admin per second).
+    pub rate_limit_api_burst: u32,
+    /// Burst size for webhook ingress (per IP per second).
+    pub rate_limit_webhook_burst: u32,
+    /// Burst size for auth endpoints like login/signup (per IP per second).
+    pub rate_limit_auth_burst: u32,
 }
 
 impl Config {
@@ -77,6 +85,15 @@ impl Config {
             daraja_initiator_name: env::var("DARAJA_INITIATOR_NAME")
                 .unwrap_or_else(|_| "conduit".into()),
             daraja_sim_mode,
+            rate_limit_api_burst: env::var("RATE_LIMIT_API_BURST")
+                .unwrap_or_else(|_| "60".into())
+                .parse()?,
+            rate_limit_webhook_burst: env::var("RATE_LIMIT_WEBHOOK_BURST")
+                .unwrap_or_else(|_| "100".into())
+                .parse()?,
+            rate_limit_auth_burst: env::var("RATE_LIMIT_AUTH_BURST")
+                .unwrap_or_else(|_| "10".into())
+                .parse()?,
         })
     }
 }

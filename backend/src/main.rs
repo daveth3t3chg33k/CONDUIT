@@ -8,12 +8,15 @@ use sqlx::postgres::PgPoolOptions;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::limit::RequestBodyLimitLayer;
 use tower_http::trace::TraceLayer;
+use tower_governor::governor::GovernorConfigBuilder;
+use tower_governor::GovernorLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
 mod error;
 mod handlers;
 mod models;
+mod rate_limit;
 mod services;
 
 pub use error::{AppError, Result};
@@ -94,6 +97,7 @@ pub struct AppState {
         handlers::mpesa_callback::StkCallback,
         handlers::stats::DailyAggregate,
         handlers::stats::AggregateResponse,
+        rate_limit::RateLimitError,
     )),
     tags(
         (name = "health", description = "Liveness and readiness probes"),
@@ -169,19 +173,56 @@ async fn main() -> anyhow::Result<()> {
             .allow_headers(Any)
     };
 
-    // ---- Public routes (no auth) ----
+    // ---- Rate limiters (per-route, different burst sizes) ----
+    // Auth rate limiter — strict, prevents credential stuffing
+    let auth_limiter = GovernorConfigBuilder::default()
+        .per_second(1)
+        .burst_size(cfg.rate_limit_auth_burst)
+        .key_extractor(rate_limit::ConduitKeyExtractor)
+        .error_handler(rate_limit::rate_limit_response)
+        .finish()
+        .expect("failed to build auth rate limiter");
+
+    // Webhook rate limiter — generous, gateways send bursts
+    let webhook_limiter = GovernorConfigBuilder::default()
+        .per_second(1)
+        .burst_size(cfg.rate_limit_webhook_burst)
+        .key_extractor(rate_limit::ConduitKeyExtractor)
+        .error_handler(rate_limit::rate_limit_response)
+        .finish()
+        .expect("failed to build webhook rate limiter");
+
+    // API rate limiter — balanced for authenticated management
+    let api_limiter = GovernorConfigBuilder::default()
+        .per_second(1)
+        .burst_size(cfg.rate_limit_api_burst)
+        .key_extractor(rate_limit::ConduitKeyExtractor)
+        .error_handler(rate_limit::rate_limit_response)
+        .finish()
+        .expect("failed to build API rate limiter");
+
+    tracing::info!(
+        auth_burst = cfg.rate_limit_auth_burst,
+        webhook_burst = cfg.rate_limit_webhook_burst,
+        api_burst = cfg.rate_limit_api_burst,
+        "rate limiters initialized"
+    );
+
+    // ---- Public routes (no auth) — auth rate limited ----
     let public_routes = Router::new()
         .route("/health", get(handlers::health::live))
         .route("/health/ready", get(handlers::health::ready))
-        // Auth: signup and login are public
+        // Auth: signup and login are public — strict rate limiting
         .route("/api/v1/auth/signup", post(handlers::auth::signup))
-        .route("/api/v1/auth/login", post(handlers::auth::login));
+        .route("/api/v1/auth/login", post(handlers::auth::login))
+        .layer(GovernorLayer { config: Arc::new(auth_limiter) });
 
-    // ---- Webhook & callback routes (no JWT auth) ----
+    // ---- Webhook & callback routes (no JWT auth) — generous rate limiting ----
     let webhook_routes = Router::new()
         .route("/api/v1/webhook/ingress", post(handlers::webhook::ingress))
         .route("/api/v1/mpesa/b2c-callback", post(handlers::mpesa_callback::b2c_callback))
-        .route("/api/v1/mpesa/stk-callback", post(handlers::mpesa_callback::stk_callback));
+        .route("/api/v1/mpesa/stk-callback", post(handlers::mpesa_callback::stk_callback))
+        .layer(GovernorLayer { config: Arc::new(webhook_limiter) });
 
     // ---- Protected management routes (JWT required) ----
     let management_routes = Router::new()
@@ -233,13 +274,16 @@ async fn main() -> anyhow::Result<()> {
 
     // JWT auth layer — extracts Claims and injects them as an Extension
     let jwt_secret = cfg.jwt_secret.clone();
-    let authed_management = management_routes.layer(axum::middleware::from_fn({
-        let secret = jwt_secret.clone();
-        move |req: Request<axum::body::Body>, next: axum::middleware::Next| {
-            let secret = secret.clone();
-            async move { jwt_auth_middleware(req, next, &secret).await }
-        }
-    }));
+    let authed_management = management_routes
+        .layer(axum::middleware::from_fn({
+            let secret = jwt_secret.clone();
+            move |req: Request<axum::body::Body>, next: axum::middleware::Next| {
+                let secret = secret.clone();
+                async move { jwt_auth_middleware(req, next, &secret).await }
+            }
+        }))
+        // API rate limiting — per-admin bucket after JWT extraction
+        .layer(GovernorLayer { config: Arc::new(api_limiter) });
 
     // ---- Swagger UI ----
     let swagger_ui = utoipa_swagger_ui::SwaggerUi::new("/swagger-ui")
