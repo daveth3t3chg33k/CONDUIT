@@ -72,6 +72,10 @@ utoipa = { version = "5", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-axum = "0.2"
 utoipa-swagger-ui = { version = "8", features = ["axum"] }
 
+[[bin]]
+name = "seed"
+path = "src/bin/seed.rs"
+
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util", "macros"] }
 sqlx = { version = "0.7", features = [
