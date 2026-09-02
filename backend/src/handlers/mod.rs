@@ -9,3 +9,4 @@ pub mod stats;
 pub mod transactions;
 pub mod vendors;
 pub mod webhook;
+pub mod webhook_deliveries;

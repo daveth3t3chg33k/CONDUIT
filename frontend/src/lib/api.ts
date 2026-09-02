@@ -115,6 +115,25 @@ export interface PayoutJob {
   created_at: string;
 }
 
+export interface WebhookDelivery {
+  id: string;
+  platform_id: string;
+  transaction_id: string | null;
+  external_ref: string;
+  status: string;
+  request_body: Record<string, unknown>;
+  response_body: Record<string, unknown> | null;
+  status_code: number | null;
+  error_message: string | null;
+  attempts: number;
+  max_attempts: number;
+  next_retry_at: string | null;
+  source_ip: string | null;
+  received_at: string;
+  completed_at: string | null;
+  created_at: string;
+}
+
 export interface LedgerResponse {
   transaction_id: string;
   entries: LedgerEntry[];
@@ -283,4 +302,29 @@ export const api = {
   },
   getPayoutJob: (id: string) =>
     request<PayoutJob>(`/api/v1/payout-jobs/${id}`),
+
+  // webhook deliveries
+  listWebhookDeliveries: (params?: {
+    platform_id?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.platform_id) qs.set("platform_id", params.platform_id);
+    if (params?.status) qs.set("status", params.status);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    if (params?.offset) qs.set("offset", String(params.offset));
+    const query = qs.toString();
+    return request<WebhookDelivery[]>(
+      `/api/v1/webhook-deliveries${query ? `?${query}` : ""}`
+    );
+  },
+  getWebhookDelivery: (id: string) =>
+    request<WebhookDelivery>(`/api/v1/webhook-deliveries/${id}`),
+  replayWebhookDelivery: (id: string) =>
+    request<{ status: string; new_delivery_id: string }>(
+      `/api/v1/webhook-deliveries/${id}/replay`,
+      { method: "POST" }
+    ),
 };

@@ -51,6 +51,24 @@ pub async fn ingress(
 
     let platform = extract_and_verify_platform(&state, &headers, &payload, &body_bytes).await?;
 
+    // Record the delivery attempt
+    let source_ip = headers.get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.split(',').next().unwrap_or(s).trim().to_string());
+    let request_body: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap_or_default();
+    let delivery_id = uuid::Uuid::new_v4();
+    sqlx::query(
+        r#"INSERT INTO webhook_deliveries (id, platform_id, external_ref, status, request_body, source_ip)
+           VALUES ($1, $2, $3, 'processing', $4, $5)"#,
+    )
+    .bind(delivery_id)
+    .bind(platform.id)
+    .bind(&payload.transaction_id)
+    .bind(&request_body)
+    .bind(&source_ip)
+    .execute(&state.db)
+    .await?;
+
     // Atomic idempotency check — use INSERT ON CONFLICT to handle concurrent delivery
     let raw_payload_json = String::from_utf8_lossy(&body_bytes).to_string();
     let status_str = TransactionStatus::Received.to_string();
@@ -153,10 +171,20 @@ pub async fn ingress(
     .execute(&state.db)
     .await?;
 
+    // Mark delivery as completed
+    sqlx::query(
+        "UPDATE webhook_deliveries SET status = 'completed', transaction_id = $1, completed_at = NOW() WHERE id = $2",
+    )
+    .bind(transaction.id)
+    .bind(delivery_id)
+    .execute(&state.db)
+    .await?;
+
     Ok(Json(serde_json::json!({
         "status": "processed",
         "transaction_id": transaction.id,
         "splits_computed": split_result.vendor_credits.len() + 1,
+        "delivery_id": delivery_id,
     })))
 }
 

@@ -68,6 +68,9 @@ pub struct AppState {
         handlers::mpesa_callback::stk_callback,
         handlers::audit::list,
         handlers::audit::get_one,
+        handlers::webhook_deliveries::list,
+        handlers::webhook_deliveries::get_one,
+        handlers::webhook_deliveries::replay,
     ),
     components(schemas(
         error::ErrorResponse,
@@ -102,6 +105,8 @@ pub struct AppState {
         handlers::stats::AggregateResponse,
         rate_limit::RateLimitError,
         models::AuditLog,
+        models::WebhookDelivery,
+        models::WebhookDeliveryStatus,
     )),
     tags(
         (name = "health", description = "Liveness and readiness probes"),
@@ -114,6 +119,7 @@ pub struct AppState {
         (name = "webhooks", description = "Payment gateway webhook ingestion"),
         (name = "m-pesa", description = "M-Pesa Daraja callback receivers"),
         (name = "audit-logs", description = "Audit trail of all mutating API actions"),
+        (name = "webhook-deliveries", description = "Webhook delivery tracking, inspection, and replay"),
     ),
     security(
         ("BearerAuth" = ["read", "write"]),
@@ -261,6 +267,10 @@ async fn main() -> anyhow::Result<()> {
             put(handlers::split_rules::update)
                 .delete(handlers::split_rules::deactivate),
         )
+        // Webhook deliveries
+        .route("/api/v1/webhook-deliveries", get(handlers::webhook_deliveries::list))
+        .route("/api/v1/webhook-deliveries/:delivery_id", get(handlers::webhook_deliveries::get_one))
+        .route("/api/v1/webhook-deliveries/:delivery_id/replay", post(handlers::webhook_deliveries::replay))
         // Audit logs
         .route("/api/v1/audit-logs", get(handlers::audit::list))
         .route("/api/v1/audit-logs/:log_id", get(handlers::audit::get_one))
@@ -392,6 +402,9 @@ async fn run_migrations(db: &sqlx::PgPool) -> anyhow::Result<()> {
 
     let migration_003 = include_str!("../migrations/003_audit_logs.sql");
     sqlx::raw_sql(migration_003).execute(db).await?;
+
+    let migration_004 = include_str!("../migrations/004_webhook_deliveries.sql");
+    sqlx::raw_sql(migration_004).execute(db).await?;
 
     Ok(())
 }
