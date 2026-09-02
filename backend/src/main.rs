@@ -18,12 +18,100 @@ mod services;
 
 pub use error::{AppError, Result};
 
+use utoipa::OpenApi;
+
 #[derive(Clone)]
 pub struct AppState {
     pub db: sqlx::PgPool,
     pub redis: redis::aio::ConnectionManager,
     pub config: config::Config,
 }
+
+#[derive(OpenApi)]
+#[openapi(
+    info(
+        title = "Conduit",
+        description = "Non-custodial split-payment routing and ledger middleware for East African fintech. Intercepts payment webhooks, computes multi-party splits, records double-entry ledger entries, and dispatches payouts via M-Pesa B2C.",
+        version = "0.1.0",
+        contact(name = "kam1rah"),
+        license(name = "MIT")
+    ),
+    paths(
+        handlers::health::live,
+        handlers::health::ready,
+        handlers::auth::signup,
+        handlers::auth::login,
+        handlers::auth::me,
+        handlers::platforms::create,
+        handlers::platforms::list,
+        handlers::platforms::get_one,
+        handlers::platforms::update,
+        handlers::stats::platform_stats,
+        handlers::vendors::create,
+        handlers::vendors::list,
+        handlers::vendors::update,
+        handlers::split_rules::create,
+        handlers::split_rules::list,
+        handlers::split_rules::update,
+        handlers::split_rules::deactivate,
+        handlers::transactions::list,
+        handlers::transactions::get_one,
+        handlers::transactions::ledger_entries,
+        handlers::payout_jobs::list,
+        handlers::payout_jobs::get_one,
+        handlers::webhook::ingress,
+        handlers::mpesa_callback::b2c_callback,
+        handlers::mpesa_callback::stk_callback,
+    ),
+    components(schemas(
+        error::ErrorResponse,
+        models::Platform,
+        models::CreatePlatform,
+        models::UpdatePlatform,
+        models::Vendor,
+        models::CreateVendor,
+        models::UpdateVendor,
+        models::SplitRule,
+        models::SplitRuleType,
+        models::CreateSplitRule,
+        models::UpdateSplitRule,
+        models::Transaction,
+        models::TransactionStatus,
+        models::LedgerEntry,
+        models::LedgerEntryType,
+        models::PayoutJob,
+        models::PayoutStatus,
+        models::Admin,
+        models::AdminPublic,
+        models::SignupRequest,
+        models::LoginRequest,
+        models::AuthResponse,
+        handlers::platforms::PlatformResponse,
+        handlers::webhook::WebhookPayload,
+        handlers::mpesa_callback::B2CCallbackPayload,
+        handlers::mpesa_callback::B2CResult,
+        handlers::mpesa_callback::StkCallbackPayload,
+        handlers::mpesa_callback::StkCallback,
+        handlers::stats::DailyAggregate,
+        handlers::stats::AggregateResponse,
+    )),
+    tags(
+        (name = "health", description = "Liveness and readiness probes"),
+        (name = "auth", description = "Admin signup, login, and profile"),
+        (name = "platforms", description = "Platform CRUD and stats"),
+        (name = "vendors", description = "Vendor management under platforms"),
+        (name = "split-rules", description = "Percentage and fixed split rule configuration"),
+        (name = "transactions", description = "Transaction listing and ledger inspection"),
+        (name = "payout-jobs", description = "Payout job monitoring and retry status"),
+        (name = "webhooks", description = "Payment gateway webhook ingestion"),
+        (name = "m-pesa", description = "M-Pesa Daraja callback receivers"),
+    ),
+    security(
+        ("BearerAuth" = ["read", "write"]),
+        ("WebhookSignature" = [])
+    )
+)]
+pub struct ApiDoc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -153,9 +241,14 @@ async fn main() -> anyhow::Result<()> {
         }
     }));
 
+    // ---- Swagger UI ----
+    let swagger_ui = utoipa_swagger_ui::SwaggerUi::new("/swagger-ui")
+        .url("/api-docs/openapi.json", ApiDoc::openapi());
+
     let app = public_routes
         .merge(webhook_routes)
         .merge(authed_management)
+        .merge(swagger_ui)
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .layer(RequestBodyLimitLayer::new(1024 * 1024))

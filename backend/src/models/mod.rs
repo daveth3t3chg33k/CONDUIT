@@ -1,13 +1,14 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 // ---------------------------------------------------------------------------
 // Platform
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Platform {
     pub id: Uuid,
     pub name: String,
@@ -16,12 +17,12 @@ pub struct Platform {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreatePlatform {
     pub name: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdatePlatform {
     pub name: Option<String>,
 }
@@ -30,7 +31,7 @@ pub struct UpdatePlatform {
 // Vendor
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Vendor {
     pub id: Uuid,
     pub platform_id: Uuid,
@@ -41,7 +42,7 @@ pub struct Vendor {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateVendor {
     pub name: String,
     pub phone_number: Option<String>,
@@ -49,7 +50,7 @@ pub struct CreateVendor {
     pub email: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateVendor {
     pub name: Option<String>,
     pub phone_number: Option<String>,
@@ -61,10 +62,12 @@ pub struct UpdateVendor {
 // Split Rule
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, ToSchema)]
 #[sqlx(type_name = "split_rule_type", rename_all = "lowercase")]
 pub enum SplitRuleType {
+    #[serde(rename = "percentage")]
     Percentage,
+    #[serde(rename = "fixed")]
     Fixed,
 }
 
@@ -77,7 +80,7 @@ impl std::fmt::Display for SplitRuleType {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct SplitRule {
     pub id: Uuid,
     pub platform_id: Uuid,
@@ -88,7 +91,7 @@ pub struct SplitRule {
     pub is_active: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateSplitRule {
     pub vendor_id: Uuid,
     pub rule_type: SplitRuleType,
@@ -96,7 +99,7 @@ pub struct CreateSplitRule {
     pub priority: Option<i32>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateSplitRule {
     pub value: Option<i64>,
     pub priority: Option<i32>,
@@ -107,12 +110,16 @@ pub struct UpdateSplitRule {
 // Transaction
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, ToSchema)]
 #[sqlx(type_name = "transaction_status", rename_all = "snake_case")]
 pub enum TransactionStatus {
+    #[serde(rename = "received")]
     Received,
+    #[serde(rename = "split_computed")]
     SplitComputed,
+    #[serde(rename = "paid_out")]
     PaidOut,
+    #[serde(rename = "failed")]
     Failed,
 }
 
@@ -127,7 +134,7 @@ impl std::fmt::Display for TransactionStatus {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Transaction {
     pub id: Uuid,
     pub platform_id: Uuid,
@@ -144,14 +151,16 @@ pub struct Transaction {
 // Ledger Entry
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, ToSchema)]
 #[sqlx(type_name = "ledger_entry_type", rename_all = "lowercase")]
 pub enum LedgerEntryType {
+    #[serde(rename = "debit")]
     Debit,
+    #[serde(rename = "credit")]
     Credit,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct LedgerEntry {
     pub id: Uuid,
     pub transaction_id: Uuid,
@@ -166,17 +175,22 @@ pub struct LedgerEntry {
 // Payout Job
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, sqlx::Type, ToSchema)]
 #[sqlx(type_name = "payout_status", rename_all = "snake_case")]
 pub enum PayoutStatus {
+    #[serde(rename = "queued")]
     Queued,
+    #[serde(rename = "dispatching")]
     Dispatching,
+    #[serde(rename = "completed")]
     Completed,
+    #[serde(rename = "failed")]
     Failed,
+    #[serde(rename = "manual_review")]
     ManualReview,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct PayoutJob {
     pub id: Uuid,
     pub transaction_id: Uuid,
@@ -194,7 +208,7 @@ pub struct PayoutJob {
 // Admin (authentication)
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct Admin {
     pub id: Uuid,
     pub email: String,
@@ -205,27 +219,27 @@ pub struct Admin {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct SignupRequest {
     pub email: String,
     pub name: String,
     pub password: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct LoginRequest {
     pub email: String,
     pub password: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct AuthResponse {
     pub token: String,
     pub admin: AdminPublic,
 }
 
 /// Public admin profile returned in API responses — no password hash.
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow, ToSchema)]
 pub struct AdminPublic {
     pub id: Uuid,
     pub email: String,

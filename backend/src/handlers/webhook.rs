@@ -2,6 +2,7 @@ use axum::extract::{State, Json};
 use axum::http::HeaderMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use utoipa::ToSchema;
 
 use crate::error::{AppError, Result};
 use crate::models::{Platform, Transaction, TransactionStatus};
@@ -9,7 +10,7 @@ use crate::services::split_engine;
 use crate::AppState;
 
 /// Payload we expect from payment gateways.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct WebhookPayload {
     pub transaction_id: String,
     pub amount: i64,
@@ -21,7 +22,24 @@ pub struct WebhookPayload {
     pub timestamp: Option<String>,
 }
 
-/// POST /api/v1/webhook/ingress
+/// Ingest a payment webhook notification.
+///
+/// Verifies the HMAC signature, deduplicates by external reference,
+/// computes split allocations, and enqueues payout jobs.
+#[utoipa::path(
+    post,
+    path = "/api/v1/webhook/ingress",
+    tag = "webhooks",
+    request_body = WebhookPayload,
+    responses(
+        (status = 200, description = "Webhook processed or deduplicated", body = serde_json::Value),
+        (status = 400, description = "Invalid payload or missing fields", body = crate::error::ErrorResponse),
+        (status = 401, description = "Invalid HMAC signature", body = crate::error::ErrorResponse),
+    ),
+    security(
+        ("WebhookSignature" = ["X-Webhook-Signature"])
+    )
+)]
 pub async fn ingress(
     State(state): State<std::sync::Arc<AppState>>,
     headers: HeaderMap,

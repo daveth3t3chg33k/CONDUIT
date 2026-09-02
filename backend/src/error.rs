@@ -1,6 +1,15 @@
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use serde::Serialize;
 use serde_json::json;
+use utoipa::ToSchema;
+
+/// Standard error response returned by all API endpoints on failure.
+#[derive(Debug, Serialize, ToSchema)]
+pub struct ErrorResponse {
+    /// Human-readable error message
+    pub error: String,
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {

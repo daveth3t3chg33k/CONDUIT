@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 pub mod config;
 pub mod error;
 pub mod handlers;

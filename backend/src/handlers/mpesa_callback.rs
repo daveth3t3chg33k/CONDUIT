@@ -1,17 +1,18 @@
 use axum::extract::State;
 use axum::Json;
 use serde::Deserialize;
+use utoipa::ToSchema;
 
 use crate::AppState;
 
 /// Payload sent by Safaricom Daraja to our ResultURL / QueueTimeOutURL
 /// after a B2C payment completes or times out.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct B2CCallbackPayload {
     pub result: B2CResult,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct B2CResult {
     #[serde(rename = "ConversationID")]
     pub conversation_id: Option<String>,
@@ -23,10 +24,19 @@ pub struct B2CResult {
     pub result_desc: Option<String>,
 }
 
-/// POST /api/v1/mpesa/b2c-callback
+/// M-Pesa B2C callback receiver.
 ///
 /// Safaricom calls this endpoint asynchronously after processing a B2C payment.
 /// ResultCode 0 means success. Any other code means failure.
+#[utoipa::path(
+    post,
+    path = "/api/v1/mpesa/b2c-callback",
+    tag = "m-pesa",
+    request_body = B2CCallbackPayload,
+    responses(
+        (status = 200, description = "Callback acknowledged", body = serde_json::Value),
+    ),
+)]
 pub async fn b2c_callback(
     State(state): State<std::sync::Arc<AppState>>,
     Json(payload): Json<B2CCallbackPayload>,
@@ -83,15 +93,13 @@ pub async fn b2c_callback(
     }))
 }
 
-/// POST /api/v1/mpesa/stk-callback
-///
 /// Callback for STK Push (Lipa Na M-Pesa Online) transactions.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct StkCallbackPayload {
     pub stk_callback: StkCallback,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct StkCallback {
     #[serde(rename = "MerchantRequestID")]
     pub merchant_request_id: Option<String>,
@@ -105,6 +113,18 @@ pub struct StkCallback {
     pub callback_metadata: Option<serde_json::Value>,
 }
 
+/// M-Pesa STK Push callback receiver.
+///
+/// Called by Safaricom after an STK Push (Lipa Na M-Pesa Online) transaction.
+#[utoipa::path(
+    post,
+    path = "/api/v1/mpesa/stk-callback",
+    tag = "m-pesa",
+    request_body = StkCallbackPayload,
+    responses(
+        (status = 200, description = "Callback acknowledged", body = serde_json::Value),
+    ),
+)]
 pub async fn stk_callback(
     State(_state): State<std::sync::Arc<AppState>>,
     Json(payload): Json<StkCallbackPayload>,

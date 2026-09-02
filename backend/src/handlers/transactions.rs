@@ -5,7 +5,25 @@ use crate::error::{AppError, Result};
 use crate::models::{LedgerEntry, LedgerEntryType, Transaction};
 use crate::AppState;
 
-/// GET /api/v1/transactions
+/// List all transactions.
+///
+/// Optionally filter by platform_id. Results ordered by received_at descending.
+#[utoipa::path(
+    get,
+    path = "/api/v1/transactions",
+    tag = "transactions",
+    params(
+        ("platform_id" = Option<Uuid>, Query, description = "Filter by platform UUID"),
+        ("limit" = Option<u32>, Query, description = "Max results (default 50, max 200)"),
+        ("offset" = Option<u32>, Query, description = "Pagination offset"),
+    ),
+    responses(
+        (status = 200, description = "List of transactions", body = Vec<Transaction>),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn list(
     State(state): State<std::sync::Arc<AppState>>,
     axum::extract::Query(params): axum::extract::Query<ListParams>,
@@ -57,7 +75,22 @@ pub struct ListParams {
     pub offset: Option<u32>,
 }
 
-/// GET /api/v1/transactions/:transaction_id
+/// Get a single transaction by ID.
+#[utoipa::path(
+    get,
+    path = "/api/v1/transactions/{transaction_id}",
+    tag = "transactions",
+    params(
+        ("transaction_id" = Uuid, Path, description = "Transaction UUID"),
+    ),
+    responses(
+        (status = 200, description = "Transaction details", body = Transaction),
+        (status = 404, description = "Transaction not found", body = crate::error::ErrorResponse),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn get_one(
     State(state): State<std::sync::Arc<AppState>>,
     Path(transaction_id): Path<Uuid>,
@@ -79,7 +112,24 @@ pub async fn get_one(
     Ok(Json(transaction))
 }
 
-/// GET /api/v1/transactions/:transaction_id/ledger
+/// Get ledger entries for a transaction.
+///
+/// Returns all double-entry bookkeeping entries with a balance summary.
+#[utoipa::path(
+    get,
+    path = "/api/v1/transactions/{transaction_id}/ledger",
+    tag = "transactions",
+    params(
+        ("transaction_id" = Uuid, Path, description = "Transaction UUID"),
+    ),
+    responses(
+        (status = 200, description = "Ledger entries with balance summary", body = serde_json::Value),
+        (status = 404, description = "Transaction not found", body = crate::error::ErrorResponse),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn ledger_entries(
     State(state): State<std::sync::Arc<AppState>>,
     Path(transaction_id): Path<Uuid>,
