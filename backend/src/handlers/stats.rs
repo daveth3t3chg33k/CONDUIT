@@ -1,25 +1,44 @@
 use axum::extract::{Path, State, Json};
 use serde::Serialize;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::error::Result;
 use crate::AppState;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct DailyAggregate {
+    /// Date in YYYY-MM-DD format
     pub date: String,
+    /// Number of transactions on this day
     pub count: i64,
+    /// Total volume in integer cents
     pub volume_cents: i64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct AggregateResponse {
     pub platform_id: Uuid,
     pub days: Vec<DailyAggregate>,
 }
 
-/// GET /api/v1/platforms/:platform_id/stats
+/// Get daily transaction stats for a platform.
+///
 /// Returns daily transaction count and volume for the last 30 days.
+#[utoipa::path(
+    get,
+    path = "/api/v1/platforms/{platform_id}/stats",
+    tag = "platforms",
+    params(
+        ("platform_id" = Uuid, Path, description = "Platform UUID"),
+    ),
+    responses(
+        (status = 200, description = "Daily aggregates", body = AggregateResponse),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn platform_stats(
     State(state): State<std::sync::Arc<AppState>>,
     Path(platform_id): Path<Uuid>,

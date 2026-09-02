@@ -1,5 +1,6 @@
 use axum::extract::{Path, State, Json};
 use serde::Serialize;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::error::{AppError, Result};
@@ -7,7 +8,7 @@ use crate::models::{CreatePlatform, UpdatePlatform};
 use crate::AppState;
 
 /// Response that masks the webhook secret — never return it in full after creation.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct PlatformResponse {
     pub id: Uuid,
     pub name: String,
@@ -29,7 +30,22 @@ impl From<crate::models::Platform> for PlatformResponse {
     }
 }
 
-/// POST /api/v1/platforms
+/// Create a new platform.
+///
+/// Generates a webhook secret on creation — returned only in this response.
+#[utoipa::path(
+    post,
+    path = "/api/v1/platforms",
+    tag = "platforms",
+    request_body = CreatePlatform,
+    responses(
+        (status = 201, description = "Platform created", body = PlatformResponse),
+        (status = 400, description = "Validation error", body = crate::error::ErrorResponse),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn create(
     State(state): State<std::sync::Arc<AppState>>,
     Json(body): Json<CreatePlatform>,
@@ -67,7 +83,18 @@ pub async fn create(
     Ok(Json(serde_json::to_value(response)?))
 }
 
-/// GET /api/v1/platforms
+/// List all platforms.
+#[utoipa::path(
+    get,
+    path = "/api/v1/platforms",
+    tag = "platforms",
+    responses(
+        (status = 200, description = "List of platforms", body = Vec<PlatformResponse>),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn list(
     State(state): State<std::sync::Arc<AppState>>,
 ) -> Result<Json<Vec<PlatformResponse>>> {
@@ -80,7 +107,22 @@ pub async fn list(
     Ok(Json(platforms.into_iter().map(PlatformResponse::from).collect()))
 }
 
-/// GET /api/v1/platforms/:platform_id
+/// Get a single platform by ID.
+#[utoipa::path(
+    get,
+    path = "/api/v1/platforms/{platform_id}",
+    tag = "platforms",
+    params(
+        ("platform_id" = Uuid, Path, description = "Platform UUID"),
+    ),
+    responses(
+        (status = 200, description = "Platform details", body = PlatformResponse),
+        (status = 404, description = "Platform not found", body = crate::error::ErrorResponse),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn get_one(
     State(state): State<std::sync::Arc<AppState>>,
     Path(platform_id): Path<Uuid>,
@@ -97,7 +139,23 @@ pub async fn get_one(
     Ok(Json(platform.into()))
 }
 
-/// PUT /api/v1/platforms/:platform_id
+/// Update a platform's name.
+#[utoipa::path(
+    put,
+    path = "/api/v1/platforms/{platform_id}",
+    tag = "platforms",
+    params(
+        ("platform_id" = Uuid, Path, description = "Platform UUID"),
+    ),
+    request_body = UpdatePlatform,
+    responses(
+        (status = 200, description = "Updated platform", body = PlatformResponse),
+        (status = 404, description = "Platform not found", body = crate::error::ErrorResponse),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn update(
     State(state): State<std::sync::Arc<AppState>>,
     Path(platform_id): Path<Uuid>,

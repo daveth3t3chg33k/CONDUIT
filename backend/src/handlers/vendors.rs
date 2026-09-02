@@ -1,18 +1,36 @@
 use axum::extract::{Path, State, Json};
 use serde::Deserialize;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::error::{AppError, Result};
 use crate::models::{CreateVendor, UpdateVendor, Vendor};
 use crate::AppState;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct ListParams {
     pub limit: Option<u32>,
     pub offset: Option<u32>,
 }
 
-/// POST /api/v1/platforms/:platform_id/vendors
+/// Create a vendor under a platform.
+#[utoipa::path(
+    post,
+    path = "/api/v1/platforms/{platform_id}/vendors",
+    tag = "vendors",
+    params(
+        ("platform_id" = Uuid, Path, description = "Platform UUID"),
+    ),
+    request_body = CreateVendor,
+    responses(
+        (status = 201, description = "Vendor created", body = Vendor),
+        (status = 400, description = "Validation error", body = crate::error::ErrorResponse),
+        (status = 404, description = "Platform not found", body = crate::error::ErrorResponse),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn create(
     State(state): State<std::sync::Arc<AppState>>,
     Path(platform_id): Path<Uuid>,
@@ -72,7 +90,23 @@ pub async fn create(
     Ok(Json(vendor))
 }
 
-/// GET /api/v1/platforms/:platform_id/vendors
+/// List vendors for a platform.
+#[utoipa::path(
+    get,
+    path = "/api/v1/platforms/{platform_id}/vendors",
+    tag = "vendors",
+    params(
+        ("platform_id" = Uuid, Path, description = "Platform UUID"),
+        ("limit" = Option<u32>, Query, description = "Max results (default 50, max 200)"),
+        ("offset" = Option<u32>, Query, description = "Pagination offset"),
+    ),
+    responses(
+        (status = 200, description = "List of vendors", body = Vec<Vendor>),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn list(
     State(state): State<std::sync::Arc<AppState>>,
     Path(platform_id): Path<Uuid>,
@@ -99,7 +133,23 @@ pub async fn list(
     Ok(Json(vendors))
 }
 
-/// PUT /api/v1/vendors/:vendor_id
+/// Update a vendor's details.
+#[utoipa::path(
+    put,
+    path = "/api/v1/vendors/{vendor_id}",
+    tag = "vendors",
+    params(
+        ("vendor_id" = Uuid, Path, description = "Vendor UUID"),
+    ),
+    request_body = UpdateVendor,
+    responses(
+        (status = 200, description = "Updated vendor", body = Vendor),
+        (status = 404, description = "Vendor not found", body = crate::error::ErrorResponse),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn update(
     State(state): State<std::sync::Arc<AppState>>,
     Path(vendor_id): Path<Uuid>,

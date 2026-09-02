@@ -5,11 +5,27 @@ use serde_json::json;
 use crate::AppState;
 
 /// Liveness probe — just confirms the process is up.
+#[utoipa::path(
+    get,
+    path = "/health",
+    tag = "health",
+    responses(
+        (status = 200, description = "Service is alive", body = serde_json::Value),
+    ),
+)]
 pub async fn live() -> Json<serde_json::Value> {
     Json(json!({ "status": "ok" }))
 }
 
 /// Readiness probe — pings postgres and redis to confirm dependencies are alive.
+#[utoipa::path(
+    get,
+    path = "/health/ready",
+    tag = "health",
+    responses(
+        (status = 200, description = "Service readiness status", body = serde_json::Value),
+    ),
+)]
 pub async fn ready(State(state): State<std::sync::Arc<AppState>>) -> Json<serde_json::Value> {
     let db_ok = sqlx::query("SELECT 1")
         .execute(&state.db)

@@ -18,7 +18,19 @@ pub struct Claims {
     pub exp: usize,
 }
 
-/// POST /api/v1/auth/signup
+/// Register a new admin account.
+///
+/// Returns a JWT token and the admin profile.
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/signup",
+    tag = "auth",
+    request_body = crate::models::SignupRequest,
+    responses(
+        (status = 200, description = "Account created", body = crate::models::AuthResponse),
+        (status = 400, description = "Validation error", body = crate::error::ErrorResponse),
+    ),
+)]
 pub async fn signup(
     State(state): State<std::sync::Arc<AppState>>,
     Json(body): Json<SignupRequest>,
@@ -75,7 +87,19 @@ pub async fn signup(
     Ok(Json(AuthResponse { token, admin: public }))
 }
 
-/// POST /api/v1/auth/login
+/// Log in with email and password.
+///
+/// Returns a JWT token and the admin profile.
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/login",
+    tag = "auth",
+    request_body = crate::models::LoginRequest,
+    responses(
+        (status = 200, description = "Login successful", body = crate::models::AuthResponse),
+        (status = 400, description = "Invalid credentials", body = crate::error::ErrorResponse),
+    ),
+)]
 pub async fn login(
     State(state): State<std::sync::Arc<AppState>>,
     Json(body): Json<LoginRequest>,
@@ -107,7 +131,19 @@ pub async fn login(
     Ok(Json(AuthResponse { token, admin: public }))
 }
 
-/// GET /api/v1/auth/me
+/// Get the current authenticated admin's profile.
+#[utoipa::path(
+    get,
+    path = "/api/v1/auth/me",
+    tag = "auth",
+    responses(
+        (status = 200, description = "Admin profile", body = crate::models::AdminPublic),
+        (status = 401, description = "Not authenticated"),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn me(
     State(state): State<std::sync::Arc<AppState>>,
     axum::extract::Extension(claims): axum::extract::Extension<Claims>,

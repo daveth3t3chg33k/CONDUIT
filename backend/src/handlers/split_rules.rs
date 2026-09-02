@@ -5,7 +5,26 @@ use crate::error::{AppError, Result};
 use crate::models::{CreateSplitRule, SplitRule, UpdateSplitRule};
 use crate::AppState;
 
-/// POST /api/v1/platforms/:platform_id/split-rules
+/// Create a split rule for a platform.
+///
+/// Percentage rules use basis points (10000 = 100%).
+/// Fixed rules use integer cents.
+#[utoipa::path(
+    post,
+    path = "/api/v1/platforms/{platform_id}/split-rules",
+    tag = "split-rules",
+    params(
+        ("platform_id" = Uuid, Path, description = "Platform UUID"),
+    ),
+    request_body = CreateSplitRule,
+    responses(
+        (status = 201, description = "Split rule created", body = SplitRule),
+        (status = 400, description = "Validation error", body = crate::error::ErrorResponse),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn create(
     State(state): State<std::sync::Arc<AppState>>,
     Path(platform_id): Path<Uuid>,
@@ -76,7 +95,23 @@ pub async fn create(
     Ok(Json(rule))
 }
 
-/// GET /api/v1/platforms/:platform_id/split-rules
+/// List split rules for a platform.
+///
+/// Rules are returned ordered by priority ascending.
+#[utoipa::path(
+    get,
+    path = "/api/v1/platforms/{platform_id}/split-rules",
+    tag = "split-rules",
+    params(
+        ("platform_id" = Uuid, Path, description = "Platform UUID"),
+    ),
+    responses(
+        (status = 200, description = "List of split rules", body = Vec<SplitRule>),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn list(
     State(state): State<std::sync::Arc<AppState>>,
     Path(platform_id): Path<Uuid>,
@@ -97,7 +132,23 @@ pub async fn list(
     Ok(Json(rules))
 }
 
-/// PUT /api/v1/split-rules/:rule_id
+/// Update a split rule's value, priority, or active status.
+#[utoipa::path(
+    put,
+    path = "/api/v1/split-rules/{rule_id}",
+    tag = "split-rules",
+    params(
+        ("rule_id" = Uuid, Path, description = "Split rule UUID"),
+    ),
+    request_body = UpdateSplitRule,
+    responses(
+        (status = 200, description = "Updated split rule", body = SplitRule),
+        (status = 404, description = "Rule not found", body = crate::error::ErrorResponse),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn update(
     State(state): State<std::sync::Arc<AppState>>,
     Path(rule_id): Path<Uuid>,
@@ -132,7 +183,24 @@ pub async fn update(
     Ok(Json(rule))
 }
 
-/// DELETE /api/v1/split-rules/:rule_id
+/// Deactivate a split rule (soft delete).
+///
+/// Sets `is_active` to false without removing the record.
+#[utoipa::path(
+    delete,
+    path = "/api/v1/split-rules/{rule_id}",
+    tag = "split-rules",
+    params(
+        ("rule_id" = Uuid, Path, description = "Split rule UUID"),
+    ),
+    responses(
+        (status = 200, description = "Rule deactivated", body = serde_json::Value),
+        (status = 404, description = "Rule not found", body = crate::error::ErrorResponse),
+    ),
+    security(
+        ("BearerAuth" = [])
+    )
+)]
 pub async fn deactivate(
     State(state): State<std::sync::Arc<AppState>>,
     Path(rule_id): Path<Uuid>,
