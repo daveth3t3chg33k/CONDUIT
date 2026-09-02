@@ -246,3 +246,73 @@ pub struct AdminPublic {
     pub name: String,
     pub created_at: DateTime<Utc>,
 }
+
+// ---------------------------------------------------------------------------
+// Audit Log
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
+pub struct AuditLog {
+    pub id: Uuid,
+    pub admin_id: Option<Uuid>,
+    pub admin_email: Option<String>,
+    pub method: String,
+    pub path: String,
+    pub status_code: i16,
+    pub ip_address: Option<String>,
+    pub user_agent: Option<String>,
+    pub duration_ms: i64,
+    pub request_body: Option<serde_json::Value>,
+    pub created_at: DateTime<Utc>,
+}
+
+// ---------------------------------------------------------------------------
+// Webhook Delivery
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::Type, ToSchema)]
+#[sqlx(type_name = "webhook_delivery_status", rename_all = "snake_case")]
+pub enum WebhookDeliveryStatus {
+    #[serde(rename = "received")]
+    Received,
+    #[serde(rename = "processing")]
+    Processing,
+    #[serde(rename = "completed")]
+    Completed,
+    #[serde(rename = "failed")]
+    Failed,
+    #[serde(rename = "dead_letter")]
+    DeadLetter,
+}
+
+impl std::fmt::Display for WebhookDeliveryStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Received => write!(f, "received"),
+            Self::Processing => write!(f, "processing"),
+            Self::Completed => write!(f, "completed"),
+            Self::Failed => write!(f, "failed"),
+            Self::DeadLetter => write!(f, "dead_letter"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, ToSchema)]
+pub struct WebhookDelivery {
+    pub id: Uuid,
+    pub platform_id: Uuid,
+    pub transaction_id: Option<Uuid>,
+    pub external_ref: String,
+    pub status: WebhookDeliveryStatus,
+    pub request_body: serde_json::Value,
+    pub response_body: Option<serde_json::Value>,
+    pub status_code: Option<i16>,
+    pub error_message: Option<String>,
+    pub attempts: i32,
+    pub max_attempts: i32,
+    pub next_retry_at: Option<DateTime<Utc>>,
+    pub source_ip: Option<String>,
+    pub received_at: DateTime<Utc>,
+    pub completed_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+}

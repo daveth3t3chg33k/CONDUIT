@@ -12,6 +12,7 @@ use tower_governor::governor::GovernorConfigBuilder;
 use tower_governor::GovernorLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod audit;
 mod config;
 mod error;
 mod handlers;
@@ -65,6 +66,11 @@ pub struct AppState {
         handlers::webhook::ingress,
         handlers::mpesa_callback::b2c_callback,
         handlers::mpesa_callback::stk_callback,
+        handlers::audit::list,
+        handlers::audit::get_one,
+        handlers::webhook_deliveries::list,
+        handlers::webhook_deliveries::get_one,
+        handlers::webhook_deliveries::replay,
     ),
     components(schemas(
         error::ErrorResponse,
@@ -98,6 +104,9 @@ pub struct AppState {
         handlers::stats::DailyAggregate,
         handlers::stats::AggregateResponse,
         rate_limit::RateLimitError,
+        models::AuditLog,
+        models::WebhookDelivery,
+        models::WebhookDeliveryStatus,
     )),
     tags(
         (name = "health", description = "Liveness and readiness probes"),
@@ -109,6 +118,8 @@ pub struct AppState {
         (name = "payout-jobs", description = "Payout job monitoring and retry status"),
         (name = "webhooks", description = "Payment gateway webhook ingestion"),
         (name = "m-pesa", description = "M-Pesa Daraja callback receivers"),
+        (name = "audit-logs", description = "Audit trail of all mutating API actions"),
+        (name = "webhook-deliveries", description = "Webhook delivery tracking, inspection, and replay"),
     ),
     security(
         ("BearerAuth" = ["read", "write"]),
@@ -256,6 +267,13 @@ async fn main() -> anyhow::Result<()> {
             put(handlers::split_rules::update)
                 .delete(handlers::split_rules::deactivate),
         )
+        // Webhook deliveries
+        .route("/api/v1/webhook-deliveries", get(handlers::webhook_deliveries::list))
+        .route("/api/v1/webhook-deliveries/:delivery_id", get(handlers::webhook_deliveries::get_one))
+        .route("/api/v1/webhook-deliveries/:delivery_id/replay", post(handlers::webhook_deliveries::replay))
+        // Audit logs
+        .route("/api/v1/audit-logs", get(handlers::audit::list))
+        .route("/api/v1/audit-logs/:log_id", get(handlers::audit::get_one))
         // Transactions & payouts
         .route("/api/v1/transactions", get(handlers::transactions::list))
         .route(
@@ -283,7 +301,12 @@ async fn main() -> anyhow::Result<()> {
             }
         }))
         // API rate limiting — per-admin bucket after JWT extraction
-        .layer(GovernorLayer { config: Arc::new(api_limiter) });
+        .layer(GovernorLayer { config: Arc::new(api_limiter) })
+        // Audit logging — records all mutating actions
+        .layer(axum::middleware::from_fn_with_state(
+            Arc::clone(&state),
+            audit::audit_log_middleware,
+        ));
 
     // ---- Swagger UI ----
     let swagger_ui = utoipa_swagger_ui::SwaggerUi::new("/swagger-ui")
@@ -376,6 +399,12 @@ async fn run_migrations(db: &sqlx::PgPool) -> anyhow::Result<()> {
 
     let migration_002 = include_str!("../migrations/002_admins.sql");
     sqlx::raw_sql(migration_002).execute(db).await?;
+
+    let migration_003 = include_str!("../migrations/003_audit_logs.sql");
+    sqlx::raw_sql(migration_003).execute(db).await?;
+
+    let migration_004 = include_str!("../migrations/004_webhook_deliveries.sql");
+    sqlx::raw_sql(migration_004).execute(db).await?;
 
     Ok(())
 }
