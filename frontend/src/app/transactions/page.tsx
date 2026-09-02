@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import StatusBadge from "@/components/StatusBadge";
 import { api, Transaction, LedgerResponse } from "@/lib/api";
 import { usePlatform } from "@/lib/PlatformContext";
+import { TableRowSkeleton } from "@/components/Skeleton";
 
 const STATUS_FILTERS = ["all", "received", "split_computed", "paid_out", "failed"];
 
@@ -90,10 +91,7 @@ export default function TransactionsPage() {
                   </thead>
                   <tbody>
                     {loading ? (
-                      <tr><td colSpan={5} className="px-6 py-16 text-center">
-                        <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-ink-faint)] border-t-[var(--color-primary)] mb-3" />
-                        <p className="text-[13px] text-[var(--color-ink-muted)]">Loading…</p>
-                      </td></tr>
+                      <TableRowSkeleton columns={5} />
                     ) : filtered.length === 0 ? (
                       <tr><td colSpan={5} className="px-6 py-16 text-center text-[13px] text-[var(--color-ink-muted)]">No transactions found.</td></tr>
                     ) : filtered.map(tx => (

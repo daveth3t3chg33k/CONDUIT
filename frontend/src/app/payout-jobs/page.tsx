@@ -6,6 +6,7 @@ import StatusBadge from "@/components/StatusBadge";
 import { api, PayoutJob } from "@/lib/api";
 import { usePlatform } from "@/lib/PlatformContext";
 import { useToast } from "@/lib/ToastContext";
+import { SummaryCardsSkeleton, FilterPillsSkeleton, TableRowSkeleton } from "@/components/Skeleton";
 
 const STATUS_FILTERS = ["all", "queued", "dispatching", "completed", "manual_review"];
 
@@ -100,7 +101,9 @@ export default function PayoutJobsPage() {
           ) : (
             <>
               {/* summary cards */}
-              {!loading && jobs.length > 0 && (
+              {loading ? (
+                <SummaryCardsSkeleton />
+              ) : jobs.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                   <div className="px-4 py-3 bg-[var(--color-surface)] rounded-[var(--radius-md)] border border-[var(--color-border)]">
                     <p className="text-[11px] font-semibold text-[var(--color-ink-muted)] uppercase tracking-wider">Queued</p>
@@ -122,6 +125,7 @@ export default function PayoutJobsPage() {
               )}
 
               {/* filter pills */}
+              {!loading && (
               <div className="flex items-center gap-2 mb-6 flex-wrap">
                 {STATUS_FILTERS.map(f => (
                   <button key={f} onClick={() => { setActiveFilter(f); setPage(0); }}
@@ -131,6 +135,8 @@ export default function PayoutJobsPage() {
                   </button>
                 ))}
               </div>
+
+              )}
 
               {error && <div className="mb-4 px-4 py-3 rounded-[var(--radius-md)] bg-[var(--color-danger-bg)] border border-red-200 text-[13px] text-[var(--color-danger)] font-medium">{error}</div>}
 
@@ -147,10 +153,7 @@ export default function PayoutJobsPage() {
                   </tr></thead>
                   <tbody>
                     {loading ? (
-                      <tr><td colSpan={7} className="px-6 py-16 text-center">
-                        <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-ink-faint)] border-t-[var(--color-primary)] mb-3" />
-                        <p className="text-[13px] text-[var(--color-ink-muted)]">Loading…</p>
-                      </td></tr>
+                      <TableRowSkeleton columns={7} />
                     ) : jobs.length === 0 ? (
                       <tr><td colSpan={7} className="px-6 py-16 text-center text-[13px] text-[var(--color-ink-muted)]">No payout jobs found.</td></tr>
                     ) : jobs.map(job => (

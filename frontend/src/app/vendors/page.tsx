@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Sidebar from "@/components/Sidebar";
 import { api, Vendor } from "@/lib/api";
 import { usePlatform } from "@/lib/PlatformContext";
+import { TableRowSkeleton } from "@/components/Skeleton";
 
 export default function VendorsPage() {
   const { selectedPlatformId, selectedPlatform } = usePlatform();
@@ -92,10 +93,7 @@ export default function VendorsPage() {
                   </tr></thead>
                   <tbody>
                     {loading ? (
-                      <tr><td colSpan={5} className="px-6 py-16 text-center">
-                        <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-[var(--color-ink-faint)] border-t-[var(--color-primary)] mb-3" />
-                        <p className="text-[13px] text-[var(--color-ink-muted)]">Loading…</p>
-                      </td></tr>
+                      <TableRowSkeleton columns={5} />
                     ) : vendors.length === 0 ? (
                       <tr><td colSpan={5} className="px-6 py-16 text-center text-[13px] text-[var(--color-ink-muted)]">No vendors registered yet.</td></tr>
                     ) : vendors.map(v => (
