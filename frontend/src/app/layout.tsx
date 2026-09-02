@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PlatformProvider } from "@/lib/PlatformContext";
 import { ThemeProvider } from "@/lib/ThemeContext";
+import { ToastProvider } from "@/lib/ToastContext";
+import ToastContainer from "@/components/ToastContainer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,7 +30,10 @@ export default function RootLayout({
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full`} suppressHydrationWarning>
       <body className="h-full bg-gray-50 text-gray-900 antialiased">
         <ThemeProvider>
-          <PlatformProvider>{children}</PlatformProvider>
+          <ToastProvider>
+            <PlatformProvider>{children}</PlatformProvider>
+            <ToastContainer />
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

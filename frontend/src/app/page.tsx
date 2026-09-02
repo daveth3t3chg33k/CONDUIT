@@ -5,7 +5,9 @@ import Sidebar from "@/components/Sidebar";
 import StatCard from "@/components/StatCard";
 import StatusBadge from "@/components/StatusBadge";
 import { api, Transaction } from "@/lib/api";
+import { StatCardSkeleton, DashboardTableSkeleton } from "@/components/Skeleton";
 import { usePlatform } from "@/lib/PlatformContext";
+import { useToast } from "@/lib/ToastContext";
 
 interface DayStats {
   date: string;
@@ -31,6 +33,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [serverStatus, setServerStatus] = useState<"ok" | "degraded" | "error">("error");
+  const { addToast } = useToast();
 
   useEffect(() => {
     if (!selectedPlatformId) {
@@ -48,10 +51,25 @@ export default function DashboardPage() {
           api.getPlatformStats(selectedPlatformId!),
         ]);
         if (!cancelled) {
-          if (txns.status === "fulfilled") setTransactions(txns.value);
+          if (txns.status === "fulfilled") {
+            const prev = transactions.length;
+            setTransactions(txns.value);
+            // Notify when new transactions arrive
+            if (prev > 0 && txns.value.length > prev) {
+              addToast({
+                variant: "info",
+                title: "New webhook received",
+                message: `${txns.value.length - prev} new payment(s) just came in.`,
+              });
+            }
+          }
           if (health.status === "fulfilled") setServerStatus(health.value.status === "ok" ? "ok" : "degraded");
           if (stats.status === "fulfilled") setDayStats(stats.value.days);
-          if (txns.status === "rejected") setError(txns.reason?.message || "Failed to load");
+          if (txns.status === "rejected") {
+            const msg = txns.reason?.message || "Failed to load";
+            setError(msg);
+            addToast({ variant: "error", title: "Data fetch failed", message: msg });
+          }
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Something went wrong");
@@ -173,12 +191,21 @@ export default function DashboardPage() {
               )}
 
               {/* Stat cards — varied layout: first card is accent, rest are white */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8 stagger-children">
+              <div className="mb-8">
+              {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                  <StatCardSkeleton accent />
+                  <StatCardSkeleton />
+                  <StatCardSkeleton />
+                  <StatCardSkeleton />
+                </div>
+              ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 stagger-children">
                 <StatCard
                   accent
                   label="Transactions"
-                  value={loading ? "—" : transactions.length}
-                  change={loading ? "Loading…" : "Last 10 incoming"}
+                  value={transactions.length}
+                  change="Last 10 incoming"
                   trend={txTrend}
                   sparklineData={sparklines.txCounts}
                   sparklineColor="#4F46E5"
@@ -190,8 +217,8 @@ export default function DashboardPage() {
                 />
                 <StatCard
                   label="Volume"
-                  value={loading ? "—" : `KES ${(totalVolume / 100).toLocaleString()}`}
-                  change={loading ? "Loading…" : "Combined value"}
+                  value={`KES ${(totalVolume / 100).toLocaleString()}`}
+                  change="Combined value"
                   trend={volTrend}
                   sparklineData={sparklines.volumes}
                   sparklineColor="#10B981"
@@ -225,8 +252,10 @@ export default function DashboardPage() {
                   }
                 />
               </div>
+              )}
+              </div>
 
-              {/* Recent transactions — with personality */}
+              {/* Recent transactions table */}
               <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] animate-card-enter" style={{ animationDelay: "300ms" }}>
                 <div className="px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
                   <div>
@@ -306,7 +335,7 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              {/* Quick action hint — feels like a helpful friend, not a template */}
+              {/* Quick action hint */}
               {transactions.length > 0 && (
                 <div className="mt-6 flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-indigo-50/80 to-violet-50/60 rounded-[var(--radius-lg)] border border-indigo-100 animate-card-enter" style={{ animationDelay: "500ms" }}>
                   <div className="w-8 h-8 rounded-lg bg-[var(--color-surface)]/80 flex items-center justify-center shrink-0">

@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import StatusBadge from "@/components/StatusBadge";
 import { api, PayoutJob } from "@/lib/api";
 import { usePlatform } from "@/lib/PlatformContext";
+import { useToast } from "@/lib/ToastContext";
 
 const STATUS_FILTERS = ["all", "queued", "dispatching", "completed", "manual_review"];
 
@@ -16,6 +17,7 @@ export default function PayoutJobsPage() {
   const [activeFilter, setActiveFilter] = useState("all");
   const [page, setPage] = useState(0);
   const limit = 20;
+  const { addToast } = useToast();
 
   const loadJobs = useCallback(async () => {
     if (!selectedPlatformId) {
@@ -27,8 +29,43 @@ export default function PayoutJobsPage() {
     try {
       const params: { status?: string; limit: number; offset: number } = { limit, offset: page * limit };
       if (activeFilter !== "all") params.status = activeFilter;
-      setJobs(await api.listPayoutJobs(params));
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed to load"); }
+      const result = await api.listPayoutJobs(params);
+      
+      // Check for newly completed or failed jobs compared to previous state
+      const prevJobs = jobs;
+      if (prevJobs.length > 0) {
+        result.forEach(job => {
+          const prev = prevJobs.find(j => j.id === job.id);
+          if (prev && prev.status !== job.status) {
+            if (job.status === "completed") {
+              addToast({
+                variant: "success",
+                title: "Payout completed",
+                message: `KES ${(job.amount_cents / 100).toLocaleString()} sent to vendor ${job.vendor_id.slice(0, 8)}…`,
+              });
+            } else if (job.status === "manual_review") {
+              addToast({
+                variant: "warning",
+                title: "Payout needs attention",
+                message: `KES ${(job.amount_cents / 100).toLocaleString()} failed after ${job.attempts} attempts.`,
+              });
+            } else if (job.status === "dispatching") {
+              addToast({
+                variant: "info",
+                title: "Payout dispatched",
+                message: `KES ${(job.amount_cents / 100).toLocaleString()} is on its way.`,
+              });
+            }
+          }
+        });
+      }
+      
+      setJobs(result);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Failed to load";
+      setError(msg);
+      addToast({ variant: "error", title: "Payout fetch failed", message: msg });
+    }
     finally { setLoading(false); }
   }, [selectedPlatformId, activeFilter, page]);
 
