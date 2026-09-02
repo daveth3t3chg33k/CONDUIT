@@ -12,6 +12,7 @@ interface PlatformContextValue {
   selectPlatform: (id: string) => void;
   refreshPlatforms: () => Promise<void>;
   createPlatform: (name: string) => Promise<Platform>;
+  removePlatform: (id: string) => void;
 }
 
 const PlatformContext = createContext<PlatformContextValue | null>(null);
@@ -69,6 +70,14 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     return platform;
   }, []);
 
+  const removePlatform = useCallback((id: string) => {
+    setPlatforms(prev => prev.filter(p => p.id !== id));
+    if (selectedPlatformId === id) {
+      setSelectedPlatformId(null);
+      localStorage.removeItem("conduit_platform_id");
+    }
+  }, [selectedPlatformId]);
+
   return (
     <PlatformContext.Provider value={{
       platforms,
@@ -79,6 +88,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       selectPlatform,
       refreshPlatforms,
       createPlatform,
+      removePlatform,
     }}>
       {children}
     </PlatformContext.Provider>

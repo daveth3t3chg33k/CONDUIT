@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
-import { clearToken } from "@/lib/api";
+import { clearToken, api } from "@/lib/api";
 import { usePlatform } from "@/lib/PlatformContext";
 import { useTheme } from "@/lib/ThemeContext";
+import { useToast } from "@/lib/ToastContext";
 
 const navigation = [
   {
@@ -72,12 +73,14 @@ export default function Sidebar() {
   const [hoveredNav, setHoveredNav] = useState<string | null>(null);
 
   const { toggleTheme, isDark } = useTheme();
+  const { addToast } = useToast();
 
   const {
     platforms,
     selectedPlatformId,
     selectPlatform,
     createPlatform,
+    removePlatform,
   } = usePlatform();
 
   useEffect(() => {
@@ -106,9 +109,34 @@ export default function Sidebar() {
     setCreating(true);
     setCreateError(null);
     try {
-      await createPlatform(newPlatformName.trim());
+      const platform = await createPlatform(newPlatformName.trim());
       setShowCreatePlatform(false);
       setNewPlatformName("");
+
+      addToast({
+        variant: "success",
+        title: "Platform created",
+        message: `"${platform.name}" is ready to receive payments.`,
+        duration: 10000,
+        undoLabel: "Undo",
+        undo: async () => {
+          try {
+            await api.deletePlatform(platform.id);
+            removePlatform(platform.id);
+            addToast({
+              variant: "info",
+              title: "Platform removed",
+              message: `"${platform.name}" has been deleted.`,
+            });
+          } catch {
+            addToast({
+              variant: "error",
+              title: "Couldn't undo",
+              message: "The platform may have already been deleted.",
+            });
+          }
+        },
+      });
     } catch (e) {
       setCreateError(e instanceof Error ? e.message : "Failed to create platform");
     } finally {

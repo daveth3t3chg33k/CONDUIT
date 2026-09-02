@@ -176,6 +176,10 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(data),
     }),
+  deletePlatform: (id: string) =>
+    request<{ status: string }>(`/api/v1/platforms/${id}`, {
+      method: "DELETE",
+    }),
 
   // vendors
   createVendor: (
@@ -204,6 +208,10 @@ export const api = {
     request<Vendor>(`/api/v1/vendors/${vendorId}`, {
       method: "PUT",
       body: JSON.stringify(data),
+    }),
+  deleteVendor: (vendorId: string) =>
+    request<{ status: string }>(`/api/v1/vendors/${vendorId}`, {
+      method: "DELETE",
     }),
 
   // split rules

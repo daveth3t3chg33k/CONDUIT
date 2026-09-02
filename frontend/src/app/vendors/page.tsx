@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import { api, Vendor } from "@/lib/api";
 import { usePlatform } from "@/lib/PlatformContext";
 import { TableRowSkeleton } from "@/components/Skeleton";
+import { useToast } from "@/lib/ToastContext";
 
 export default function VendorsPage() {
   const { selectedPlatformId, selectedPlatform } = usePlatform();
@@ -18,6 +19,7 @@ export default function VendorsPage() {
   const [formBank, setFormBank] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const { addToast } = useToast();
 
   const loadVendors = useCallback(async () => {
     if (!selectedPlatformId) {
@@ -51,6 +53,31 @@ export default function VendorsPage() {
       });
       setVendors(prev => [...prev, vendor]);
       setShowForm(false); setFormName(""); setFormPhone(""); setFormEmail(""); setFormBank("");
+
+      addToast({
+        variant: "success",
+        title: "Vendor added",
+        message: `${vendor.name} is ready to receive payouts.`,
+        duration: 10000,
+        undoLabel: "Undo",
+        undo: async () => {
+          try {
+            await api.deleteVendor(vendor.id);
+            setVendors(prev => prev.filter(v => v.id !== vendor.id));
+            addToast({
+              variant: "info",
+              title: "Vendor removed",
+              message: `${vendor.name} has been deleted.`,
+            });
+          } catch {
+            addToast({
+              variant: "error",
+              title: "Couldn't undo",
+              message: "The vendor may have already been deleted.",
+            });
+          }
+        },
+      });
     } catch (e) { setFormError(e instanceof Error ? e.message : "Failed to create"); }
     finally { setSubmitting(false); }
   }
@@ -114,8 +141,7 @@ export default function VendorsPage() {
       </main>
 
       {showForm && selectedPlatformId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="bg-[var(--color-surface)] rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] max-w-md w-full mx-4 border border-[var(--color-border)]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">            <div className="bg-[var(--color-surface)] rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] max-w-md w-full mx-4 border border-[var(--color-border)] animate-card-enter">
             <div className="px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
               <h2 className="text-[15px] font-bold text-[var(--color-ink)]">Add Vendor</h2>
               <button onClick={() => setShowForm(false)} className="p-1.5 rounded-lg hover:bg-[var(--color-surface-hover)] text-[var(--color-ink-muted)]">

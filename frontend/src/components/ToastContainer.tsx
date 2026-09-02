@@ -49,11 +49,22 @@ const VARIANTS: Record<
 };
 
 function SingleToast({ toast }: { toast: ToastType }) {
-  const { dismiss } = useToast();
+  const { dismiss, pauseTimer, resumeTimer } = useToast();
   const v = VARIANTS[toast.variant];
+
+  const duration = toast.duration ?? (toast.variant === "error" ? 8000 : 5000);
+
+  async function handleUndo() {
+    if (toast.undo) {
+      await toast.undo();
+    }
+    dismiss(toast.id);
+  }
 
   return (
     <div
+      onMouseEnter={() => pauseTimer(toast.id)}
+      onMouseLeave={() => resumeTimer(toast.id)}
       className={`
         toast-enter toast-exit
         flex items-start gap-3 w-[360px] max-w-[calc(100vw-2rem)]
@@ -68,7 +79,7 @@ function SingleToast({ toast }: { toast: ToastType }) {
       <div
         className={`absolute bottom-0 left-0 h-[2px] ${v.dot} toast-progress`}
         style={{
-          animationDuration: `${toast.duration ?? (toast.variant === "error" ? 8000 : 5000)}ms`,
+          animationDuration: `${duration}ms`,
         }}
       />
 
@@ -84,6 +95,15 @@ function SingleToast({ toast }: { toast: ToastType }) {
           <p className="text-[12px] text-[var(--color-ink-secondary)] mt-0.5 leading-relaxed">
             {toast.message}
           </p>
+        )}
+        {/* Undo button */}
+        {toast.undo && (
+          <button
+            onClick={handleUndo}
+            className="mt-2 px-3 py-1 text-[12px] font-bold text-[var(--color-primary)] hover:text-[var(--color-primary-hover)] bg-[var(--color-primary-light)] hover:bg-[var(--color-primary-light)]/70 rounded-full transition-all duration-150 btn-press"
+          >
+            {toast.undoLabel || "Undo"}
+          </button>
         )}
       </div>
 
