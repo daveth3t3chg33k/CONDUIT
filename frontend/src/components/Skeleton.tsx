@@ -1,10 +1,8 @@
 "use client";
 
-import { ReactNode } from "react";
-
 /* ---------------------------------------------------------------------------
    Skeleton — shimmer placeholders that match the final layout shape.
-   
+
    Each exported component renders the exact same dimensions and spacing
    as the real content it replaces, so there's zero layout shift when
    data arrives. The shimmer animation sweeps left-to-right to signal
@@ -22,21 +20,17 @@ export function SkeletonBar({ className = "", width }: { className?: string; wid
 }
 
 /** Stat card skeleton — matches StatCard layout exactly */
-export function StatCardSkeleton({ accent }: { accent?: boolean }) {
+export function StatCardSkeleton() {
   return (
-    <div className={`rounded-[var(--radius-lg)] border p-5 ${
-      accent
-        ? "bg-gradient-to-br from-[var(--color-primary)]/20 via-indigo-500/10 to-violet-600/10 border-[var(--color-primary)]/20"
-        : "bg-[var(--color-surface)] border-[var(--color-border)]"
-    }`}>
-      <div className="flex items-center justify-between mb-3">
-        <SkeletonBar className={accent ? "bg-white/20" : ""} width="80px" />
-        <div className={`w-8 h-8 rounded-lg ${accent ? "bg-white/10" : "bg-[var(--color-border-subtle)]"}`} />
+    <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] p-5">
+      <div className="flex items-center justify-between mb-4">
+        <SkeletonBar width="80px" />
+        <div className="w-7 h-7 rounded-[var(--radius-sm)] bg-[var(--color-canvas)]" />
       </div>
-      <SkeletonBar className={`h-7 rounded-md mb-2 ${accent ? "bg-white/25" : ""}`} width="120px" />
+      <SkeletonBar className="h-6 rounded-md mb-3" width="120px" />
       <div className="flex items-center justify-between">
-        <SkeletonBar className={accent ? "bg-white/15" : ""} width="100px" />
-        <div className={`w-20 h-6 rounded ${accent ? "bg-white/10" : "bg-[var(--color-border-subtle)]"}`} />
+        <SkeletonBar width="100px" />
+        <div className="w-[72px] h-5 rounded bg-[var(--color-border-subtle)]" />
       </div>
     </div>
   );
@@ -73,12 +67,12 @@ export function TableRowSkeleton({ columns, rows = 5 }: { columns: number; rows?
 /** Full table skeleton with header */
 export function TableSkeleton({ columns, columnNames, rows = 5 }: { columns: number; columnNames: string[]; rows?: number }) {
   return (
-    <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] overflow-hidden">
+    <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] overflow-hidden">
       <table className="w-full text-[13px]">
         <thead>
           <tr className="border-b border-[var(--color-border-subtle)] text-left">
             {columnNames.map((name, i) => (
-              <th key={i} className={`px-6 py-3 font-semibold text-[var(--color-ink-muted)] text-[11px] uppercase tracking-wider ${i === columnNames.length - 1 ? "text-right" : ""}`}>
+              <th key={i} className={`px-6 py-3 font-semibold text-[11px] uppercase tracking-wider text-[var(--color-ink-muted)] ${i === columnNames.length - 1 ? "text-right" : ""}`}>
                 {name}
               </th>
             ))}
@@ -109,14 +103,7 @@ export function SummaryCardsSkeleton() {
 /** Dashboard transactions skeleton — matches the real table */
 export function DashboardTableSkeleton() {
   return (
-    <div className="bg-[var(--color-surface)] rounded-[var(--radius-lg)] border border-[var(--color-border)] shadow-[var(--shadow-xs)] animate-card-enter">
-      <div className="px-6 py-4 border-b border-[var(--color-border-subtle)] flex items-center justify-between">
-        <div>
-          <SkeletonBar className="h-4 mb-1.5" width="120px" />
-          <SkeletonBar className="h-3" width="180px" />
-        </div>
-        <SkeletonBar className="h-3" width="70px" />
-      </div>
+    <div className="overflow-hidden">
       <table className="w-full text-[13px]">
         <thead>
           <tr className="border-b border-[var(--color-border-subtle)] text-left">
